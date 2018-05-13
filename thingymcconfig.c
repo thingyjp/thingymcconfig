@@ -6,6 +6,7 @@ int main(int argc, char** argv) {
 
 	GMainLoop* mainloop = g_main_loop_new(NULL, FALSE);
 
+	network_init();
 	network_start();
 	http_start();
 

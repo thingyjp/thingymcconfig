@@ -1,10 +1,9 @@
 #include <sys/types.h>
 #include <wpa_ctrl.h>
-#include <glib.h>
-#include <glib-object.h>
 #include "network.h"
 
 struct wpa_ctrl* wpa_ctrl = NULL;
+static GPtrArray* scanresults;
 
 #define MATCHBSSID "((?:[0-9a-f]{2}:{0,1}){6})"
 #define MATCHFREQ "([1-9]{4})"
@@ -20,22 +19,18 @@ typedef enum {
 	NF_WPS = 1 << 1, //
 	NF_WEP = 1 << 2, //
 	NF_WPA_PSK_CCMP = 1 << 3, //
-	NF_WPA2_PSK_CCMP = 1 << 4 //
+	NF_WPA_PSK_CCMP_TKIP = 1 << 4, //
+	NF_WPA2_PSK_CCMP = 1 << 5, //
+	NF_WPA2_PSK_CCMP_TKIP = 1 << 6
 } network_flags;
-
-struct network {
-	char bssid[18];
-	int frequency;
-	int rssi;
-	char ssid[33];
-	unsigned flags;
-};
 
 #define FLAG_ESS "ESS"
 #define FLAG_WPS "WPS"
 #define FLAG_WEP "WEP"
 #define FLAG_WPA_PSK_CCMP "WPA-PSK-CCMP"
+#define FLAG_WPA_PSK_CCMP_TKIP "WPA-PSK-CCMP+TKIP"
 #define FLAG_WPA2_PSK_CCMP "WPA2-PSK-CCMP"
+#define FLAG_WPA2_PSK_CCMP_TKIP "WPA2-PSK-CCMP+TKIP"
 
 static unsigned network_wpasupplicant_getscanresults_flags(const char* flags) {
 	unsigned f = 0;
@@ -52,8 +47,12 @@ static unsigned network_wpasupplicant_getscanresults_flags(const char* flags) {
 			f |= NF_WEP;
 		else if (strcmp(flag, FLAG_WPA_PSK_CCMP) == 0)
 			f |= NF_WPA_PSK_CCMP;
+		else if (strcmp(flag, FLAG_WPA_PSK_CCMP_TKIP) == 0)
+			f |= NF_WPA_PSK_CCMP_TKIP;
 		else if (strcmp(flag, FLAG_WPA2_PSK_CCMP) == 0)
 			f |= NF_WPA2_PSK_CCMP;
+		else if (strcmp(flag, FLAG_WPA2_PSK_CCMP_TKIP) == 0)
+			f |= NF_WPA2_PSK_CCMP_TKIP;
 		else
 			g_message("unhandled flag: %s", flag);
 		g_free(flag);
@@ -64,12 +63,31 @@ static unsigned network_wpasupplicant_getscanresults_flags(const char* flags) {
 	return f;
 }
 
-static void network_wpasupplicant_getscanresults() {
-	static const char* command = "SCAN_RESULTS";
-	size_t replylen = 1024;
-	char* reply = g_malloc0(replylen + 1);
-	if (wpa_ctrl_request(wpa_ctrl, command, strlen(command), reply, &replylen,
+static char* network_wpasupplicant_docommand(const char* command,
+		size_t* replylen) {
+	*replylen = 1024;
+	char* reply = g_malloc0(*replylen + 1);
+	if (wpa_ctrl_request(wpa_ctrl, command, strlen(command), reply, replylen,
 	NULL) == 0) {
+		return reply;
+	} else {
+		g_free(reply);
+		return NULL;
+	}
+}
+
+static void network_wpasupplicant_scan() {
+	size_t replylen;
+	char* reply = network_wpasupplicant_docommand("SCAN", &replylen);
+	if (reply != NULL) {
+		g_free(reply);
+	}
+}
+
+static void network_wpasupplicant_getscanresults() {
+	size_t replylen;
+	char* reply = network_wpasupplicant_docommand("SCAN_RESULTS", &replylen);
+	if (reply != NULL) {
 		g_message("%s\n sr: %s", SCANRESULTREGEX, reply);
 		GRegex* networkregex = g_regex_new(SCANRESULTREGEX, 0, 0,
 		NULL);
@@ -89,12 +107,14 @@ static void network_wpasupplicant_getscanresults() {
 			char* flags = g_match_info_fetch(matchinfo, 4);
 			char* ssid = g_match_info_fetch(matchinfo, 5);
 
-			struct network n;
-			strncpy(n.bssid, bssid, sizeof(n.bssid));
-			n.frequency = frequency;
-			n.rssi = rssi;
-			n.flags = network_wpasupplicant_getscanresults_flags(flags);
-			strncpy(n.ssid, ssid, sizeof(n.ssid));
+			struct network_scanresult* n = g_malloc0(
+					sizeof(struct network_scanresult));
+			strncpy(n->bssid, bssid, sizeof(n->bssid));
+			n->frequency = frequency;
+			n->rssi = rssi;
+			n->flags = network_wpasupplicant_getscanresults_flags(flags);
+			strncpy(n->ssid, ssid, sizeof(n->ssid));
+			g_ptr_array_add(scanresults, n);
 
 			g_free(bssid);
 			g_free(frequencystr);
@@ -103,7 +123,7 @@ static void network_wpasupplicant_getscanresults() {
 			g_free(ssid);
 
 			g_message("bssid %s, frequency %d, rssi %d, flags %u, ssid %s",
-					n.bssid, n.frequency, n.rssi, n.flags, n.ssid);
+					n->bssid, n->frequency, n->rssi, n->flags, n->ssid);
 
 			g_match_info_next(matchinfo, NULL);
 		}
@@ -149,7 +169,8 @@ static void network_wpasupplicant_start() {
 	g_message("starting wpa_supplicant for %s", interface);
 	gchar* args[] = { "/sbin/wpa_supplicant", "-Dnl80211", "-i", interface,
 			"-C", wpapath, NULL };
-	g_spawn_async(NULL, args, NULL, G_SPAWN_DEFAULT, NULL, NULL, NULL, NULL);
+	g_spawn_async(NULL, args, NULL, G_SPAWN_DEFAULT, NULL, NULL, NULL,
+	NULL);
 
 	g_usleep(2 * 1000000);
 
@@ -162,12 +183,17 @@ static void network_wpasupplicant_start() {
 		wpa_ctrl_attach(wpa_ctrl);
 		int fd = wpa_ctrl_get_fd(wpa_ctrl);
 		GIOChannel* channel = g_io_channel_unix_new(fd);
-		g_io_add_watch(channel, G_IO_IN, network_wpasupplicant_onevent, NULL);
+		g_io_add_watch(channel, G_IO_IN, network_wpasupplicant_onevent,
+		NULL);
 		g_message("wpa_supplicant running, control interface connected");
 	} else
 		g_message("failed to open wpa_supplicant control interface");
 
 	g_free(socketpath);
+}
+
+void network_init() {
+	scanresults = g_ptr_array_new();
 }
 
 int network_start() {
@@ -177,4 +203,9 @@ int network_start() {
 
 int network_stop() {
 	return 0;
+}
+
+GPtrArray* network_scan() {
+	network_wpasupplicant_scan();
+	return scanresults;
 }

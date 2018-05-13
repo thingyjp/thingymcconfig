@@ -2,6 +2,7 @@
 #include <json-glib/json-glib.h>
 #include <string.h>
 #include "http.h"
+#include "network.h"
 
 #define PORT 1338
 
@@ -36,6 +37,51 @@ static int http_handleconnection_status(struct MHD_Connection* connection) {
 	} else
 		g_message("failed to create response");
 
+	g_free(content);
+	return ret;
+}
+
+static void http_handleconnection_scan_addscanresult(gpointer data,
+		gpointer userdata) {
+
+	struct network_scanresult* scanresult = (struct network_scanresult*) data;
+	JsonBuilder* jsonbuilder = (JsonBuilder*) userdata;
+
+	json_builder_begin_object(jsonbuilder);
+	json_builder_set_member_name(jsonbuilder, "bssid");
+	json_builder_add_string_value(jsonbuilder, scanresult->bssid);
+	json_builder_set_member_name(jsonbuilder, "frequency");
+	json_builder_add_int_value(jsonbuilder, scanresult->frequency);
+	json_builder_set_member_name(jsonbuilder, "rssi");
+	json_builder_add_int_value(jsonbuilder, scanresult->rssi);
+	json_builder_set_member_name(jsonbuilder, "ssid");
+	json_builder_add_string_value(jsonbuilder, scanresult->ssid);
+	json_builder_end_object(jsonbuilder);
+}
+
+static int http_handleconnection_scan(struct MHD_Connection* connection) {
+
+	int ret = MHD_NO;
+
+	GPtrArray* scanresults = network_scan();
+	JsonBuilder* jsonbuilder = json_builder_new();
+	json_builder_begin_object(jsonbuilder);
+	json_builder_set_member_name(jsonbuilder, "scanresults");
+	json_builder_begin_array(jsonbuilder);
+	g_ptr_array_foreach(scanresults, http_handleconnection_scan_addscanresult,
+			jsonbuilder);
+	json_builder_end_array(jsonbuilder);
+	json_builder_end_object(jsonbuilder);
+
+	gsize jsonlen;
+	char* content = utils_jsonbuildertostring(jsonbuilder, &jsonlen);
+	struct MHD_Response* response = MHD_create_response_from_buffer(jsonlen,
+			(void*) content, MHD_RESPMEM_PERSISTENT);
+	if (response) {
+		ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
+		MHD_destroy_response(response);
+	} else
+		g_message("failed to create response");
 	g_free(content);
 	return ret;
 }
@@ -76,7 +122,9 @@ static int http_handleconnection(void* cls, struct MHD_Connection* connection,
 	gboolean ispost = (strcmp(method, MHD_HTTP_METHOD_POST) == 0);
 	if (isget && (strcmp(url, "/status") == 0))
 		ret = http_handleconnection_status(connection);
-	else if (ispost && (strcmp(url, "config") == 0))
+	else if (isget && (strcmp(url, "/scan") == 0))
+		ret = http_handleconnection_scan(connection);
+	else if (ispost && (strcmp(url, "/config") == 0))
 		ret = http_handleconnection_configure(connection);
 	else {
 		g_message("invalid request");
