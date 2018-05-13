@@ -41,7 +41,7 @@ static int http_handleconnection_status(struct MHD_Connection* connection) {
 }
 
 static int http_handleconnection_configure(struct MHD_Connection* connection) {
-	int ret = 0;
+	int ret = MHD_NO;
 	static const char* content = "{}";
 	struct MHD_Response* response = MHD_create_response_from_buffer(
 			strlen(content), (void*) content, MHD_RESPMEM_PERSISTENT);
@@ -54,7 +54,7 @@ static int http_handleconnection_configure(struct MHD_Connection* connection) {
 }
 
 static int http_handleconnection_invalid(struct MHD_Connection* connection) {
-	int ret = 0;
+	int ret = MHD_NO;
 	static const char* content = "";
 	struct MHD_Response* response = MHD_create_response_from_buffer(
 			strlen(content), (void*) content, MHD_RESPMEM_PERSISTENT);
