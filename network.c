@@ -6,13 +6,109 @@
 
 struct wpa_ctrl* wpa_ctrl = NULL;
 
+#define MATCHBSSID "((?:[0-9a-f]{2}:{0,1}){6})"
+#define MATCHFREQ "([1-9]{4})"
+#define MATCHRSSI "(-[1-9]{2,3})"
+#define FLAGPATTERN "[A-Z2\\-\\+]*"
+#define MATCHFLAG "\\[("FLAGPATTERN")\\]"
+#define MATCHFLAGS "((?:\\["FLAGPATTERN"\\]){1,})"
+#define MATCHSSID "([a-zA-Z0-9\\-]*)"
+#define SCANRESULTREGEX MATCHBSSID"\\s*"MATCHFREQ"\\s*"MATCHRSSI"\\s*"MATCHFLAGS"\\s*"MATCHSSID
+
+typedef enum {
+	NF_ESS = 1, //
+	NF_WPS = 1 << 1, //
+	NF_WEP = 1 << 2, //
+	NF_WPA_PSK_CCMP = 1 << 3, //
+	NF_WPA2_PSK_CCMP = 1 << 4 //
+} network_flags;
+
+struct network {
+	char bssid[18];
+	int frequency;
+	int rssi;
+	char ssid[33];
+	unsigned flags;
+};
+
+#define FLAG_ESS "ESS"
+#define FLAG_WPS "WPS"
+#define FLAG_WEP "WEP"
+#define FLAG_WPA_PSK_CCMP "WPA-PSK-CCMP"
+#define FLAG_WPA2_PSK_CCMP "WPA2-PSK-CCMP"
+
+static unsigned network_wpasupplicant_getscanresults_flags(const char* flags) {
+	unsigned f = 0;
+	GRegex* flagregex = g_regex_new(MATCHFLAG, 0, 0, NULL);
+	GMatchInfo* flagsmatchinfo;
+	g_regex_match(flagregex, flags, 0, &flagsmatchinfo);
+	while (g_match_info_matches(flagsmatchinfo)) {
+		char* flag = g_match_info_fetch(flagsmatchinfo, 1);
+		if (strcmp(flag, FLAG_ESS) == 0)
+			f |= NF_ESS;
+		else if (strcmp(flag, FLAG_WPS) == 0)
+			f |= NF_WPS;
+		else if (strcmp(flag, FLAG_WEP) == 0)
+			f |= NF_WEP;
+		else if (strcmp(flag, FLAG_WPA_PSK_CCMP) == 0)
+			f |= NF_WPA_PSK_CCMP;
+		else if (strcmp(flag, FLAG_WPA2_PSK_CCMP) == 0)
+			f |= NF_WPA2_PSK_CCMP;
+		else
+			g_message("unhandled flag: %s", flag);
+		g_free(flag);
+		g_match_info_next(flagsmatchinfo, NULL);
+	}
+	g_match_info_free(flagsmatchinfo);
+	g_regex_unref(flagregex);
+	return f;
+}
+
 static void network_wpasupplicant_getscanresults() {
 	static const char* command = "SCAN_RESULTS";
 	size_t replylen = 1024;
 	char* reply = g_malloc0(replylen + 1);
 	if (wpa_ctrl_request(wpa_ctrl, command, strlen(command), reply, &replylen,
 	NULL) == 0) {
-		g_message("sr: %s", reply);
+		g_message("%s\n sr: %s", SCANRESULTREGEX, reply);
+		GRegex* networkregex = g_regex_new(SCANRESULTREGEX, 0, 0,
+		NULL);
+		GMatchInfo* matchinfo;
+		g_regex_match(networkregex, reply, 0, &matchinfo);
+		while (g_match_info_matches(matchinfo)) {
+			//char* line = g_match_info_fetch(matchinfo, 0);
+			//g_message("l %s", line);
+
+			char* bssid = g_match_info_fetch(matchinfo, 1);
+
+			char* frequencystr = g_match_info_fetch(matchinfo, 2);
+			int frequency = g_ascii_strtoll(frequencystr,
+			NULL, 10);
+			char* rssistr = g_match_info_fetch(matchinfo, 3);
+			int rssi = g_ascii_strtoll(rssistr, NULL, 10);
+			char* flags = g_match_info_fetch(matchinfo, 4);
+			char* ssid = g_match_info_fetch(matchinfo, 5);
+
+			struct network n;
+			strncpy(n.bssid, bssid, sizeof(n.bssid));
+			n.frequency = frequency;
+			n.rssi = rssi;
+			n.flags = network_wpasupplicant_getscanresults_flags(flags);
+			strncpy(n.ssid, ssid, sizeof(n.ssid));
+
+			g_free(bssid);
+			g_free(frequencystr);
+			g_free(rssistr);
+			g_free(flags);
+			g_free(ssid);
+
+			g_message("bssid %s, frequency %d, rssi %d, flags %u, ssid %s",
+					n.bssid, n.frequency, n.rssi, n.flags, n.ssid);
+
+			g_match_info_next(matchinfo, NULL);
+		}
+		g_match_info_free(matchinfo);
+		g_regex_unref(networkregex);
 	}
 }
 
