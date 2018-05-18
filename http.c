@@ -4,6 +4,10 @@
 #include "http.h"
 #include "network.h"
 
+struct postconninfo {
+	GByteArray* payload;
+};
+
 #define PORT 1338
 
 static struct MHD_Daemon* mhd = NULL;
@@ -60,9 +64,7 @@ static void http_handleconnection_scan_addscanresult(gpointer data,
 }
 
 static int http_handleconnection_scan(struct MHD_Connection* connection) {
-
 	int ret = MHD_NO;
-
 	GPtrArray* scanresults = network_scan();
 	JsonBuilder* jsonbuilder = json_builder_new();
 	json_builder_begin_object(jsonbuilder);
@@ -76,7 +78,7 @@ static int http_handleconnection_scan(struct MHD_Connection* connection) {
 	gsize jsonlen;
 	char* content = utils_jsonbuildertostring(jsonbuilder, &jsonlen);
 	struct MHD_Response* response = MHD_create_response_from_buffer(jsonlen,
-			(void*) content, MHD_RESPMEM_PERSISTENT);
+			(void*) content, MHD_RESPMEM_MUST_COPY);
 	if (response) {
 		ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
 		MHD_destroy_response(response);
@@ -86,16 +88,39 @@ static int http_handleconnection_scan(struct MHD_Connection* connection) {
 	return ret;
 }
 
-static int http_handleconnection_configure(struct MHD_Connection* connection) {
+static int http_handleconnection_configure(struct MHD_Connection* connection,
+		void** con_cls) {
+	struct postconninfo* con_info = *con_cls;
 	int ret = MHD_NO;
-	static const char* content = "{}";
-	struct MHD_Response* response = MHD_create_response_from_buffer(
-			strlen(content), (void*) content, MHD_RESPMEM_PERSISTENT);
-	if (response) {
-		ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
-		MHD_destroy_response(response);
-	} else
-		g_message("failed to create response");
+	GBytes* bytes = g_byte_array_free_to_bytes(con_info->payload);
+	con_info->payload = NULL;
+	JsonParser* jsonparser = json_parser_new();
+	gsize sz;
+	gconstpointer data = g_bytes_get_data(bytes, &sz);
+	if (sz == 0)
+		g_message("0 byte payload");
+
+	if (!json_parser_load_from_data(jsonparser, data, sz, NULL))
+		g_message("failed to parse json");
+	else {
+
+		g_bytes_unref(bytes);
+
+		JsonBuilder* jsonbuilder = json_builder_new();
+		json_builder_begin_object(jsonbuilder);
+		json_builder_end_object(jsonbuilder);
+		gsize contentln;
+		char* content = utils_jsonbuildertostring(jsonbuilder, &contentln);
+
+		struct MHD_Response* response = MHD_create_response_from_buffer(
+				contentln, (void*) content, MHD_RESPMEM_MUST_COPY);
+		if (response) {
+			ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
+			MHD_destroy_response(response);
+		} else
+			g_message("failed to create response");
+		g_free(content);
+	}
 	return ret;
 }
 
@@ -112,6 +137,24 @@ static int http_handleconnection_invalid(struct MHD_Connection* connection) {
 	return ret;
 }
 
+static int http_handleconnection_continuemunchingpost(const char* upload_data,
+		size_t* upload_data_size, void** con_cls) {
+	struct postconninfo* con_info = *con_cls;
+	g_message("continuing to eat post, %d", *upload_data_size);
+	g_byte_array_append(con_info->payload, upload_data, *upload_data_size);
+	*upload_data_size = 0;
+	return MHD_YES;
+}
+
+static int http_handleconnection_startmunchingpost(
+		struct MHD_Connection* connection, void** con_cls) {
+	g_message("starting to eat post");
+	struct postconninfo* con_info = g_malloc0(sizeof(struct postconninfo));
+	con_info->payload = g_byte_array_new();
+	*con_cls = con_info;
+	return MHD_YES;
+}
+
 static int http_handleconnection(void* cls, struct MHD_Connection* connection,
 		const char* url, const char* method, const char* version,
 		const char* upload_data, size_t* upload_data_size, void** con_cls) {
@@ -124,9 +167,19 @@ static int http_handleconnection(void* cls, struct MHD_Connection* connection,
 		ret = http_handleconnection_status(connection);
 	else if (isget && (strcmp(url, "/scan") == 0))
 		ret = http_handleconnection_scan(connection);
-	else if (ispost && (strcmp(url, "/config") == 0))
-		ret = http_handleconnection_configure(connection);
-	else {
+	else if (ispost && (strcmp(url, "/config") == 0)) {
+		if (*con_cls == NULL
+				&& strcmp(
+						MHD_lookup_connection_value(connection, MHD_HEADER_KIND,
+						MHD_HTTP_HEADER_CONTENT_TYPE), "application/json")
+						== 0) {
+			ret = http_handleconnection_startmunchingpost(connection, con_cls);
+		} else if (*upload_data_size != 0)
+			ret = http_handleconnection_continuemunchingpost(upload_data,
+					upload_data_size, con_cls);
+		else
+			ret = http_handleconnection_configure(connection, con_cls);
+	} else {
 		g_message("invalid request");
 		ret = http_handleconnection_invalid(connection);
 	}
@@ -134,9 +187,22 @@ static int http_handleconnection(void* cls, struct MHD_Connection* connection,
 	return ret;
 }
 
+static void http_requestcompleted(void *cls, struct MHD_Connection *connection,
+		void **con_cls, enum MHD_RequestTerminationCode toe) {
+	struct postconninfo* con_info = *con_cls;
+	if (NULL == con_info)
+		return;
+	if (con_info->payload)
+		g_byte_array_free(con_info->payload, TRUE);
+	g_free(con_info);
+	*con_cls = NULL;
+}
+
 int http_start() {
 	mhd = MHD_start_daemon(MHD_USE_SELECT_INTERNALLY, PORT, NULL, NULL,
-			&http_handleconnection, NULL, MHD_OPTION_END);
+			http_handleconnection, NULL, MHD_OPTION_NOTIFY_COMPLETED,
+			http_requestcompleted,
+			NULL, MHD_OPTION_END);
 
 	if (mhd == NULL)
 		return 1;
