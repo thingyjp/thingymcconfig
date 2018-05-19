@@ -63,12 +63,13 @@ static unsigned network_wpasupplicant_getscanresults_flags(const char* flags) {
 	return f;
 }
 
-static char* network_wpasupplicant_docommand(const char* command,
-		size_t* replylen) {
+static gchar* network_wpasupplicant_docommand(const char* command,
+		gsize* replylen) {
 	*replylen = 1024;
 	char* reply = g_malloc0(*replylen + 1);
 	if (wpa_ctrl_request(wpa_ctrl, command, strlen(command), reply, replylen,
 	NULL) == 0) {
+		g_message("command: %s, response: %s", command, reply);
 		return reply;
 	} else {
 		g_free(reply);
@@ -192,12 +193,25 @@ static void network_wpasupplicant_start() {
 	g_free(socketpath);
 }
 
+void network_dhcpclient_start() {
+	char* interface = "wlxdcfb02a63a12";
+	g_message("starting dhcpclient for %s", interface);
+	gchar* args[] = { "/bin/busybox", "udhcpc", "-i", interface, NULL };
+	g_spawn_async(NULL, args, NULL, G_SPAWN_DEFAULT, NULL, NULL, NULL,
+	NULL);
+}
+
+void network_dhcpclient_stop() {
+
+}
+
 void network_init() {
 	scanresults = g_ptr_array_new();
 }
 
 int network_start() {
 	network_wpasupplicant_start();
+	network_dhcpclient_start();
 	return 0;
 }
 
@@ -208,4 +222,51 @@ int network_stop() {
 GPtrArray* network_scan() {
 	network_wpasupplicant_scan();
 	return scanresults;
+}
+
+void network_addnetwork(struct network_config* ntwkcfg) {
+	gsize respsz;
+	gchar* resp = network_wpasupplicant_docommand("ADD_NETWORK", &respsz);
+	g_free(resp);
+
+	GString* ssidcmdstr = g_string_new(NULL);
+	g_string_printf(ssidcmdstr, "SET_NETWORK %d ssid \"%s\"", 0, ntwkcfg->ssid);
+	gchar* ssidcmd = g_string_free(ssidcmdstr, FALSE);
+	resp = network_wpasupplicant_docommand(ssidcmd, &respsz);
+	g_free(ssidcmd);
+	g_free(resp);
+
+	GString* pskcmdstr = g_string_new(NULL);
+	g_string_printf(pskcmdstr, "SET_NETWORK %d psk \"%s\"", 0, ntwkcfg->psk);
+	gchar* pskcmd = g_string_free(pskcmdstr, FALSE);
+	resp = network_wpasupplicant_docommand(pskcmd, &respsz);
+	g_free(pskcmd);
+	g_free(resp);
+
+	GString* selectcmdstr = g_string_new(NULL);
+	g_string_printf(selectcmdstr, "SELECT_NETWORK %d", 0);
+	gchar* selectcmd = g_string_free(selectcmdstr, FALSE);
+	resp = network_wpasupplicant_docommand(selectcmd, &respsz);
+	g_free(selectcmd);
+	g_free(resp);
+}
+
+struct network_config* network_parseconfig(JsonNode* root) {
+	if (json_node_get_node_type(root) == JSON_NODE_OBJECT) {
+		JsonObject* rootobj = json_node_get_object(root);
+		if (json_object_has_member(rootobj, "ssid")
+				&& json_object_has_member(rootobj, "psk")) {
+			struct network_config* ntwkcfg = g_malloc0(
+					sizeof(struct network_config));
+			const gchar* ssid = json_object_get_string_member(rootobj, "ssid");
+			const gchar* psk = json_object_get_string_member(rootobj, "psk");
+			strcpy(ntwkcfg->ssid, ssid);
+			strcpy(ntwkcfg->psk, psk);
+			return ntwkcfg;
+		} else
+			g_message("network config is missing required fields");
+	} else
+		g_message("root of network config should be an object");
+
+	return NULL;
 }

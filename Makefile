@@ -9,7 +9,9 @@ thingymcconfig: thingymcconfig.c \
 	http.o \
 	os_unix.o \
 	wpa_ctrl.o \
-	network.o
+	network.o \
+	config.o \
+	utils.o
 	$(CC) $(CFLAGS) $(LIBMICROHTTPD) $(GLIBJSON) -o $@ $^
 
 http.o: http.c http.h
@@ -18,6 +20,11 @@ http.o: http.c http.h
 network.o: network.c network.h
 	$(CC) $(CFLAGS) $(GLIBJSON) $(HOSTAPD) -c -o $@ $<
 
+config.o: config.c config.h
+	$(CC) $(CFLAGS) $(GLIBJSON) -c -o $@ $<
+	
+utils.o: utils.c utils.h
+	$(CC) $(CFLAGS) $(GLIBJSON) -c -o $@ $<
 
 os_unix.o: hostap/src/utils/os_unix.c
 	$(CC) $(CFLAGS) -c -o $@ $<

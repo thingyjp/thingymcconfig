@@ -3,6 +3,7 @@
 #include <string.h>
 #include "http.h"
 #include "network.h"
+#include "utils.h"
 
 struct postconninfo {
 	GByteArray* payload;
@@ -11,18 +12,6 @@ struct postconninfo {
 #define PORT 1338
 
 static struct MHD_Daemon* mhd = NULL;
-
-gchar* utils_jsonbuildertostring(JsonBuilder* jsonbuilder, gsize* jsonlen) {
-	JsonNode* responseroot = json_builder_get_root(jsonbuilder);
-	JsonGenerator* generator = json_generator_new();
-	json_generator_set_root(generator, responseroot);
-
-	gchar* json = json_generator_to_data(generator, jsonlen);
-	json_node_free(responseroot);
-	g_object_unref(generator);
-	g_object_unref(jsonbuilder);
-	return json;
-}
 
 static int http_handleconnection_status(struct MHD_Connection* connection) {
 	JsonBuilder* jsonbuilder = json_builder_new();
@@ -88,42 +77,6 @@ static int http_handleconnection_scan(struct MHD_Connection* connection) {
 	return ret;
 }
 
-static int http_handleconnection_configure(struct MHD_Connection* connection,
-		void** con_cls) {
-	struct postconninfo* con_info = *con_cls;
-	int ret = MHD_NO;
-	GBytes* bytes = g_byte_array_free_to_bytes(con_info->payload);
-	con_info->payload = NULL;
-	JsonParser* jsonparser = json_parser_new();
-	gsize sz;
-	gconstpointer data = g_bytes_get_data(bytes, &sz);
-	if (sz == 0)
-		g_message("0 byte payload");
-
-	if (!json_parser_load_from_data(jsonparser, data, sz, NULL))
-		g_message("failed to parse json");
-	else {
-
-		g_bytes_unref(bytes);
-
-		JsonBuilder* jsonbuilder = json_builder_new();
-		json_builder_begin_object(jsonbuilder);
-		json_builder_end_object(jsonbuilder);
-		gsize contentln;
-		char* content = utils_jsonbuildertostring(jsonbuilder, &contentln);
-
-		struct MHD_Response* response = MHD_create_response_from_buffer(
-				contentln, (void*) content, MHD_RESPMEM_MUST_COPY);
-		if (response) {
-			ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
-			MHD_destroy_response(response);
-		} else
-			g_message("failed to create response");
-		g_free(content);
-	}
-	return ret;
-}
-
 static int http_handleconnection_invalid(struct MHD_Connection* connection) {
 	int ret = MHD_NO;
 	static const char* content = "";
@@ -134,6 +87,56 @@ static int http_handleconnection_invalid(struct MHD_Connection* connection) {
 		MHD_destroy_response(response);
 	} else
 		g_message("failed to create response");
+	return ret;
+}
+
+static int http_handleconnection_configure(struct MHD_Connection* connection,
+		void** con_cls) {
+	struct postconninfo* con_info = *con_cls;
+	int ret = MHD_NO;
+	GBytes* bytes = g_byte_array_free_to_bytes(con_info->payload);
+	con_info->payload = NULL;
+	JsonParser* jsonparser = json_parser_new();
+	gsize sz;
+	gconstpointer data = g_bytes_get_data(bytes, &sz);
+	if (sz == 0) {
+		g_message("0 byte payload");
+		goto invalidrequest;
+	}
+
+	if (!json_parser_load_from_data(jsonparser, data, sz, NULL)) {
+		g_message("failed to parse json");
+		goto invalidrequest;
+	}
+
+	JsonNode* root = json_parser_get_root(jsonparser);
+	struct network_config* ntwkcfg = network_parseconfig(root);
+	if (ntwkcfg == NULL) {
+		goto invalidrequest;
+	}
+
+	network_addnetwork(ntwkcfg);
+
+	JsonBuilder* jsonbuilder = json_builder_new();
+	json_builder_begin_object(jsonbuilder);
+	json_builder_end_object(jsonbuilder);
+	gsize contentln;
+	char* content = utils_jsonbuildertostring(jsonbuilder, &contentln);
+
+	struct MHD_Response* response = MHD_create_response_from_buffer(contentln,
+			(void*) content, MHD_RESPMEM_MUST_COPY);
+	if (response) {
+		ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
+		MHD_destroy_response(response);
+	} else
+		g_message("failed to create response");
+	g_free(content);
+	goto out;
+
+	invalidrequest: ret = http_handleconnection_invalid(connection);
+	out: g_object_unref(jsonparser);
+	g_bytes_unref(bytes);
+
 	return ret;
 }
 
