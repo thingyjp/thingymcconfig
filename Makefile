@@ -1,9 +1,10 @@
-.PHONY: clean
-
+PKGCONFIG ?= pkg-config
 CFLAGS=-ggdb
-LIBMICROHTTPD=`pkg-config --cflags --libs libmicrohttpd`
-GLIBJSON=`pkg-config --libs --cflags json-glib-1.0`
+LIBMICROHTTPD=`$(PKGCONFIG) --cflags --libs libmicrohttpd`
+GLIBJSON=`$(PKGCONFIG) --libs --cflags json-glib-1.0`
 HOSTAPD=-Ihostap/src/common/ -Ihostap/src/utils/
+
+.PHONY: clean
 
 thingymcconfig: thingymcconfig.c \
 	http.o \
@@ -22,7 +23,7 @@ network.o: network.c network.h
 
 config.o: config.c config.h
 	$(CC) $(CFLAGS) $(GLIBJSON) -c -o $@ $<
-	
+
 utils.o: utils.c utils.h
 	$(CC) $(CFLAGS) $(GLIBJSON) -c -o $@ $<
 
