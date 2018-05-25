@@ -1,0 +1,14 @@
+-- Brief --
+
+ This is intended to be a daemon that manages a wifi interface of
+ a Linux based IoT device.
+
+-- Requirements --
+
+ Software:
+ libmicrohttpd with TLS enabled
+ udhcpd/udhcpc (part of busybox)
+ wpasupplicant
+ 
+ Hardware:
+ wifi interface that supports NL80211
