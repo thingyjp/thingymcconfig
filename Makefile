@@ -1,10 +1,11 @@
-.PHONY: clean
-
+PKGCONFIG ?= pkg-config
 CFLAGS=-ggdb
-LIBMICROHTTPD=`pkg-config --cflags --libs libmicrohttpd`
-GLIBJSON=`pkg-config --libs --cflags json-glib-1.0`
+LIBMICROHTTPD=`$(PKGCONFIG) --cflags --libs libmicrohttpd`
+GLIBJSON=`$(PKGCONFIG) --libs --cflags json-glib-1.0`
 HOSTAPD=-Ihostap/src/common/ -Ihostap/src/utils/
 LIBNLGENL=`pkg-config --cflags --libs libnl-genl-3.0`
+
+.PHONY: clean
 
 thingymcconfig: thingymcconfig.c \
 	http.o \
