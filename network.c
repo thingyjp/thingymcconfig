@@ -1,9 +1,12 @@
 #include <sys/types.h>
 #include <wpa_ctrl.h>
+#include <netlink/socket.h>
+#include <netlink/genl/genl.h>
 #include "network.h"
 
 struct wpa_ctrl* wpa_ctrl = NULL;
 static GPtrArray* scanresults;
+static struct nl_sock* nlsock;
 
 #define MATCHBSSID "((?:[0-9a-f]{2}:{0,1}){6})"
 #define MATCHFREQ "([1-9]{4})"
@@ -205,11 +208,27 @@ void network_dhcpclient_stop() {
 
 }
 
+void network_dhcpserver_start() {
+
+}
+
+void network_dhcpserver_stop() {
+
+}
+
 void network_init() {
+	nlsock = nl_socket_alloc();
+	genl_connect(nlsock);
+
 	scanresults = g_ptr_array_new();
 }
 
+void network_createinterfaces() {
+
+}
+
 int network_start() {
+	network_createinterfaces();
 	network_wpasupplicant_start();
 	network_dhcpclient_start();
 	return 0;
