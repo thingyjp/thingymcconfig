@@ -204,92 +204,12 @@ void network_dhcpserver_stop() {
 
 }
 
-static void network_phy_free(gpointer data) {
-	struct network_phy* phy = data;
-	g_free(phy->phyname);
-	g_free(phy);
-}
-
 static void network_interface_free(gpointer data) {
 	struct network_interface* interface = data;
 	g_free(interface);
 }
 
-/*static int network_netlink_listphys_callback(struct nl_msg *msg, void *arg) {
- //nl_msg_dump(msg, stdout);
-
- GHashTable* phys = arg;
-
- struct genlmsghdr *genlhdr = nlmsg_data(nlmsg_hdr(msg));
- int attrlen = genlmsg_attrlen(genlhdr, 0);
- struct nlattr* attrs = genlmsg_attrdata(genlhdr, 0);
-
- struct nlattr *nla;
- int rem;
-
- // create or find or copy of this phy first
- struct network_phy* phy = NULL;
- nla_for_each_attr(nla, attrs, attrlen, rem)
- {
- switch (nla_type(nla)) {
- case NL80211_ATTR_WIPHY: {
- guint32 wiphy = nla_get_u32(nla);
- if (g_hash_table_contains(phys, &wiphy))
- phy = g_hash_table_lookup(phys, &wiphy);
- else {
- phy = g_malloc0(sizeof(*phy));
- phy->wiphy = wiphy;
- g_hash_table_insert(phys, &phy->wiphy, phy);
- }
- }
- break;
- }
- }
-
- // populate our phy
- if (phy != NULL) {
- nla_for_each_attr(nla, attrs, attrlen, rem)
- {
- switch (nla_type(nla)) {
- case NL80211_ATTR_WIPHY_NAME: {
- if (phy->phyname == NULL) {
- char* phyname = nla_get_string(nla);
- phy->phyname = g_strdup(phyname);
- }
- }
- break;
- }
- }
- }
-
- return NL_SKIP;
- }*/
-
-/*static GHashTable* network_netlink_listphys() {
- struct nl_msg* msg = nlmsg_alloc();
- if (msg == NULL) {
- g_message(NETWORK_ERRMSG_FAILEDTOALLOCNLMSG);
- goto err_allocmsg;
- }
-
- GHashTable* phys = g_hash_table_new_full(g_int_hash, g_int_equal, NULL,
- network_phy_free);
-
- nl_socket_modify_cb(nlsock, NL_CB_VALID, NL_CB_CUSTOM,
- network_netlink_listphys_callback, phys);
- genlmsg_put(msg, 0, 0, nl80211id, 0, NLM_F_DUMP, NL80211_CMD_GET_WIPHY, 0);
- nl_send_auto_complete(nlsock, msg);
- nl_recvmsgs_default(nlsock);
- nlmsg_free(msg);
-
- return phys;
-
- err_allocmsg: //
- return NULL;
- }*/
-
-static int network_netlink_listinterfaces_callback(struct nl_msg *msg,
-		void *arg) {
+static int network_netlink_interface_callback(struct nl_msg *msg, void *arg) {
 	//nl_msg_dump(msg, stdout);
 
 	struct genlmsghdr *genlhdr = nlmsg_data(nlmsg_hdr(msg));
@@ -327,7 +247,7 @@ static GHashTable* network_netlink_listinterfaces() {
 	NULL, network_interface_free);
 
 	nl_socket_modify_cb(nlsock, NL_CB_VALID, NL_CB_CUSTOM,
-			network_netlink_listinterfaces_callback, interfaces);
+			network_netlink_interface_callback, interfaces);
 	genlmsg_put(msg, 0, 0, nl80211id, 0, NLM_F_DUMP, NL80211_CMD_GET_INTERFACE,
 			0);
 
@@ -376,35 +296,73 @@ void network_cleanup() {
 
 }
 
-/*static void network_findphy_walkinterfaces(gpointer key, gpointer value,
- gpointer userdata) {
- struct network_phy* phy = value;
- g_message("found phy: %s", phy->phyname);
- GHashTable* interfaces = network_netlink_listinterfaces(phy->wiphy);
- if (interfaces != NULL) {
+static void network_createapinterface(GHashTable* interfaces, guint32 wiphy) {
 
- g_hash_table_unref(interfaces);
- }
- }*/
+	struct nl_msg* msg = nlmsg_alloc();
+	if (msg == NULL) {
+		g_message(NETWORK_ERRMSG_FAILEDTOALLOCNLMSG);
+		goto err_allocmsg;
+	}
 
-static void network_findphy(const gchar* interfacename) {
-	GHashTable* interfaces = network_netlink_listinterfaces();
-	/*g_hash_table_foreach(interfaces, network_findphy_walkinterfaces,
-	 interfacename);*/
+	nl_socket_modify_cb(nlsock, NL_CB_VALID, NL_CB_CUSTOM,
+			network_netlink_interface_callback, interfaces);
+	genlmsg_put(msg, 0, 0, nl80211id, 0, 0, NL80211_CMD_NEW_INTERFACE, 0);
+	nla_put_string(msg, NL80211_ATTR_IFNAME, "thingy_ap");
+	nla_put_u32(msg, NL80211_ATTR_IFTYPE, NL80211_IFTYPE_AP);
+	nla_put_u32(msg, NL80211_ATTR_WIPHY, wiphy);
+
+	nl_send_auto_complete(nlsock, msg);
+	nl_recvmsgs_default(nlsock);
+	nlmsg_free(msg);
+
+	return;
+
+	err_allocmsg: return;
+
+}
+
+static gboolean network_filteroutotherphys_filter(gpointer key, gpointer value,
+		gpointer user_data) {
+	struct network_interface* interface = value;
+	guint32 wiphy = *((guint32*) user_data);
+	return wiphy != interface->wiphy;
+
+}
+static void network_filteroutoutherphys(GHashTable* interfaces, guint32 wiphy) {
+	g_hash_table_foreach_remove(interfaces, network_filteroutotherphys_filter,
+			&wiphy);
+}
+
+static gboolean network_findphy(GHashTable* interfaces,
+		const gchar* interfacename, guint32* wiphy) {
 	if (g_hash_table_contains(interfaces, interfacename)) {
 		struct network_interface* interface = g_hash_table_lookup(interfaces,
 				interfacename);
-		g_message("found wiphy -> %d", interface->wiphy);
+		*wiphy = interface->wiphy;
+		return TRUE;
+	}
+	return FALSE;
+}
+
+static void network_setupinterfaces() {
+	GHashTable* interfaces = network_netlink_listinterfaces();
+	guint32 wiphy;
+	if (network_findphy(interfaces, interface, &wiphy)) {
+		network_filteroutoutherphys(interfaces, wiphy);
+		int remainingnetworks = g_hash_table_size(interfaces);
+		if (remainingnetworks == 1) {
+			g_message("AP interface missing.. will create");
+			network_createapinterface(interfaces, wiphy);
+		} else if (remainingnetworks == 2)
+			g_message("AP interface already exists");
+		else
+			g_message("errrrorororo");
 	}
 	g_hash_table_unref(interfaces);
 }
 
-void network_createinterfaces() {
-
-}
-
 int network_start() {
-	network_findphy(interface);
+	network_setupinterfaces();
 //network_createinterfaces();
 //network_wpasupplicant_start();
 //network_dhcpclient_start();

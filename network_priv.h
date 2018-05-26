@@ -20,11 +20,6 @@ typedef enum {
 	NF_WPA2_PSK_CCMP_TKIP = 1 << 6
 } network_flags;
 
-struct network_phy {
-	guint32 wiphy;
-	gchar* phyname;
-};
-
 struct network_interface {
 	guint32 wiphy;
 	gchar* ifname;
