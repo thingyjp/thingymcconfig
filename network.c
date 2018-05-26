@@ -2,11 +2,15 @@
 #include <wpa_ctrl.h>
 #include <netlink/socket.h>
 #include <netlink/genl/genl.h>
+#include <netlink/genl/ctrl.h>
+#include <linux/nl80211.h>
 #include "network.h"
 
 struct wpa_ctrl* wpa_ctrl = NULL;
 static GPtrArray* scanresults;
+
 static struct nl_sock* nlsock;
+static int nl80211id;
 
 #define MATCHBSSID "((?:[0-9a-f]{2}:{0,1}){6})"
 #define MATCHFREQ "([1-9]{4})"
@@ -216,11 +220,110 @@ void network_dhcpserver_stop() {
 
 }
 
-void network_init() {
-	nlsock = nl_socket_alloc();
-	genl_connect(nlsock);
+struct network_phy {
+	guint32 phy;
+};
 
+static int network_netlink_dumpphys_callback(struct nl_msg *msg, void *arg) {
+	//nl_msg_dump(msg, stdout);
+
+	GHashTable* phys = arg;
+
+	struct genlmsghdr *genlhdr = nlmsg_data(nlmsg_hdr(msg));
+
+	int attrlen = genlmsg_attrlen(genlhdr, 0);
+	struct nlattr* attrs = genlmsg_attrdata(genlhdr, 0);
+
+	struct nlattr *nla;
+	int rem;
+	nla_for_each_attr(nla, attrs, attrlen, rem)
+	{
+
+		switch (nla_type(nla)) {
+		case NL80211_ATTR_WIPHY_NAME: {
+			char* phyname = nla_get_string(nla);
+			struct network_phy* phy;
+			if (g_hash_table_contains(phys, phyname))
+				phy = g_hash_table_lookup(phys, phyname);
+			else {
+				phy = g_malloc0(sizeof(*phy));
+				g_hash_table_insert(phys, g_strdup(phyname), phy);
+			}
+		}
+			break;
+		}
+	}
+
+	return NL_SKIP;
+}
+
+static gboolean network_netlink_init() {
+	nlsock = nl_socket_alloc();
+	if (nlsock == NULL) {
+		g_message("failed to create netlink socket");
+		goto err_sock;
+	}
+	if (genl_connect(nlsock)) {
+		g_message("failed to connect netlink socket");
+		goto err_connect;
+	}
+
+	nl80211id = genl_ctrl_resolve(nlsock, "nl80211");
+	if (nl80211id == 0) {
+		g_message("failed to resolve nl80211");
+		goto err_resolve;
+	}
+
+	return TRUE;
+
+	err_resolve: //
+	err_connect: //
+	nl_socket_free(nlsock);
+	err_sock: //
+	return FALSE;
+}
+
+static GHashTable* network_netlink_listphys() {
+	struct nl_msg* msg = nlmsg_alloc();
+	if (msg == NULL) {
+		g_message("failed to allocate netlink message");
+		goto err_allocmsg;
+	}
+
+	GHashTable* phys = g_hash_table_new(g_str_hash, g_str_equal);
+
+	nl_socket_modify_cb(nlsock, NL_CB_VALID, NL_CB_CUSTOM,
+			network_netlink_dumpphys_callback, phys);
+	genlmsg_put(msg, 0, 0, nl80211id, 0, NLM_F_DUMP, NL80211_CMD_GET_WIPHY, 0);
+	nl_send_auto_complete(nlsock, msg);
+	nl_recvmsgs_default(nlsock);  // Retrieve the kernel's answer.
+	nlmsg_free(msg);
+
+	return phys;
+
+	err_allocmsg: //
+	return NULL;
+}
+
+void network_init() {
+	network_netlink_init();
 	scanresults = g_ptr_array_new();
+}
+
+void network_cleanup() {
+
+}
+
+static void network_findphy_walk(gpointer data, gpointer userdata) {
+	gchar* phyname = data;
+	g_message("found phy: %s", phyname);
+}
+
+static void network_findphy() {
+	GHashTable* phys = network_netlink_listphys();
+	GList* phynames = g_hash_table_get_keys(phys);
+	g_list_foreach(phynames, network_findphy_walk, NULL);
+	g_list_free(phynames);
 }
 
 void network_createinterfaces() {
@@ -228,9 +331,10 @@ void network_createinterfaces() {
 }
 
 int network_start() {
-	network_createinterfaces();
-	network_wpasupplicant_start();
-	network_dhcpclient_start();
+	network_findphy();
+	//network_createinterfaces();
+	//network_wpasupplicant_start();
+	//network_dhcpclient_start();
 	return 0;
 }
 
