@@ -12,3 +12,12 @@
  
  Hardware:
  wifi interface that supports NL80211
+
+-- Protocol --
+ 
+ Scanning:
+
+ Configuring:
+ curl -H "Content-Type: application/json" '{"ssid":"mynetwork", "psk":"mypassword"}' -v "http://127.0.0.1:1338/config"
+
+ Status:

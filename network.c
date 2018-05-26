@@ -228,6 +228,8 @@ static int network_netlink_interface_callback(struct nl_msg *msg, void *arg) {
 		case NL80211_ATTR_WIPHY:
 			interface->wiphy = nla_get_u32(nla);
 			break;
+		case NL80211_ATTR_IFTYPE:
+			interface->ap = NL80211_IFTYPE_AP;
 		}
 	}
 	GHashTable* interfaces = arg;
@@ -363,9 +365,8 @@ static void network_setupinterfaces() {
 
 int network_start() {
 	network_setupinterfaces();
-//network_createinterfaces();
-//network_wpasupplicant_start();
-//network_dhcpclient_start();
+	network_wpasupplicant_start();
+	network_dhcpclient_start();
 	return 0;
 }
 
