@@ -12,7 +12,12 @@ int main(int argc, char** argv) {
 	network_start();
 	http_start();
 
+	network_startap();
+
 	g_main_loop_run(mainloop);
+
+	http_stop();
+	network_stop();
 
 	return 0;
 }

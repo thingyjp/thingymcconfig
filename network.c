@@ -7,13 +7,17 @@
 #include "network.h"
 #include "network_priv.h"
 
-char* interface = "wlxdcfb02a63a12";
+static char* interface = "wlxdcfb02a63a12";
+static char* apinterfacename;
+static char* wpasupplicantsocketdir = "/tmp/thingy_sockets/";
 
 struct wpa_ctrl* wpa_ctrl = NULL;
 static GPtrArray* scanresults;
 
 static struct nl_sock* nlsock;
 static int nl80211id;
+
+static GPid udhcpcpid, udhcpdpid, stasupplicantpid, apsupplicantpid;
 
 #define MATCHBSSID "((?:[0-9a-f]{2}:{0,1}){6})"
 #define MATCHFREQ "([1-9]{4})"
@@ -156,18 +160,17 @@ static gboolean network_wpasupplicant_onevent(GIOChannel *source,
 	return TRUE;
 }
 
-static void network_wpasupplicant_start() {
-	char* wpapath = "/tmp/omnomnom";
+static void network_wpasupplicant_start(char* interface, GPid* pid) {
 	g_message("starting wpa_supplicant for %s", interface);
 	gchar* args[] = { "/sbin/wpa_supplicant", "-Dnl80211", "-i", interface,
-			"-C", wpapath, NULL };
-	g_spawn_async(NULL, args, NULL, G_SPAWN_DEFAULT, NULL, NULL, NULL,
+			"-C", wpasupplicantsocketdir, NULL };
+	g_spawn_async(NULL, args, NULL, G_SPAWN_DEFAULT, NULL, NULL, pid,
 	NULL);
 
 	g_usleep(2 * 1000000);
 
 	GString* socketpathstr = g_string_new(NULL);
-	g_string_printf(socketpathstr, "%s/%s", wpapath, interface);
+	g_string_printf(socketpathstr, "%s/%s", wpasupplicantsocketdir, interface);
 	gchar* socketpath = g_string_free(socketpathstr, FALSE);
 
 	wpa_ctrl = wpa_ctrl_open(socketpath);
@@ -184,24 +187,30 @@ static void network_wpasupplicant_start() {
 	g_free(socketpath);
 }
 
+static void network_wpasupplicant_stop() {
+
+}
+
 void network_dhcpclient_start() {
-	char* interface = "wlxdcfb02a63a12";
-	g_message("starting dhcpclient for %s", interface);
+	g_message("starting dhcp client for %s", interface);
 	gchar* args[] = { "/bin/busybox", "udhcpc", "-i", interface, NULL };
-	g_spawn_async(NULL, args, NULL, G_SPAWN_DEFAULT, NULL, NULL, NULL,
+	g_spawn_async(NULL, args, NULL, G_SPAWN_DEFAULT, NULL, NULL, &udhcpcpid,
 	NULL);
 }
 
 void network_dhcpclient_stop() {
-
+	g_spawn_close_pid(udhcpcpid);
 }
 
 void network_dhcpserver_start() {
-
+	g_message("starting dhcp server for %s", interface);
+	gchar* args[] = { "/bin/busybox", "udhcpd", "-i", interface, NULL };
+	g_spawn_async(NULL, args, NULL, G_SPAWN_DEFAULT, NULL, NULL, &udhcpdpid,
+	NULL);
 }
 
 void network_dhcpserver_stop() {
-
+	g_spawn_close_pid(udhcpdpid);
 }
 
 static void network_interface_free(gpointer data) {
@@ -210,7 +219,7 @@ static void network_interface_free(gpointer data) {
 }
 
 static int network_netlink_interface_callback(struct nl_msg *msg, void *arg) {
-	//nl_msg_dump(msg, stdout);
+	nl_msg_dump(msg, stdout);
 
 	struct genlmsghdr *genlhdr = nlmsg_data(nlmsg_hdr(msg));
 	int attrlen = genlmsg_attrlen(genlhdr, 0);
@@ -229,13 +238,22 @@ static int network_netlink_interface_callback(struct nl_msg *msg, void *arg) {
 			interface->wiphy = nla_get_u32(nla);
 			break;
 		case NL80211_ATTR_IFTYPE:
-			interface->ap = NL80211_IFTYPE_AP;
+			interface->ap = nla_get_u32(nla) == NL80211_IFTYPE_AP;
 		}
 	}
 	GHashTable* interfaces = arg;
 	g_hash_table_insert(interfaces, interface->ifname, interface);
 
 	return NL_SKIP;
+}
+
+static void network_netlink_sendmsgandfree(struct nl_msg* msg) {
+	int ret;
+	if ((ret = nl_send_auto(nlsock, msg)) < 0) {
+		g_message("failed to send nl message -> %d", ret);
+	}
+	nl_recvmsgs_default(nlsock);
+	nlmsg_free(msg);
 }
 
 static GHashTable* network_netlink_listinterfaces() {
@@ -253,9 +271,7 @@ static GHashTable* network_netlink_listinterfaces() {
 	genlmsg_put(msg, 0, 0, nl80211id, 0, NLM_F_DUMP, NL80211_CMD_GET_INTERFACE,
 			0);
 
-	nl_send_auto_complete(nlsock, msg);
-	nl_recvmsgs_default(nlsock);
-	nlmsg_free(msg);
+	network_netlink_sendmsgandfree(msg);
 
 	return interfaces;
 
@@ -298,7 +314,8 @@ void network_cleanup() {
 
 }
 
-static void network_createapinterface(GHashTable* interfaces, guint32 wiphy) {
+static void network_createapinterface(GHashTable* interfaces,
+		struct network_interface* stainterface) {
 
 	struct nl_msg* msg = nlmsg_alloc();
 	if (msg == NULL) {
@@ -306,16 +323,24 @@ static void network_createapinterface(GHashTable* interfaces, guint32 wiphy) {
 		goto err_allocmsg;
 	}
 
+	GString* interfacenamestr = g_string_new(NULL);
+	g_string_printf(interfacenamestr, "%s_ap", stainterface->ifname);
+	gchar* interfacename = g_string_free(interfacenamestr, FALSE);
+
+	g_message("creating ap VIF called %s on %d", interfacename,
+			stainterface->wiphy);
+
 	nl_socket_modify_cb(nlsock, NL_CB_VALID, NL_CB_CUSTOM,
 			network_netlink_interface_callback, interfaces);
-	genlmsg_put(msg, 0, 0, nl80211id, 0, 0, NL80211_CMD_NEW_INTERFACE, 0);
-	nla_put_string(msg, NL80211_ATTR_IFNAME, "thingy_ap");
+	genlmsg_put(msg, 0, NLM_F_DUMP, nl80211id, 0, 0, NL80211_CMD_NEW_INTERFACE,
+			0);
+	nla_put_string(msg, NL80211_ATTR_IFNAME, interfacename);
 	nla_put_u32(msg, NL80211_ATTR_IFTYPE, NL80211_IFTYPE_AP);
-	nla_put_u32(msg, NL80211_ATTR_WIPHY, wiphy);
+	nla_put_u32(msg, NL80211_ATTR_WIPHY, stainterface->wiphy);
 
-	nl_send_auto_complete(nlsock, msg);
-	nl_recvmsgs_default(nlsock);
-	nlmsg_free(msg);
+	network_netlink_sendmsgandfree(msg);
+
+	g_free(interfacename);
 
 	return;
 
@@ -346,6 +371,12 @@ static gboolean network_findphy(GHashTable* interfaces,
 	return FALSE;
 }
 
+static gboolean network_findapinterface(gpointer key, gpointer value,
+		gpointer user_data) {
+	struct network_interface* interface = value;
+	return interface->ap;
+}
+
 static void network_setupinterfaces() {
 	GHashTable* interfaces = network_netlink_listinterfaces();
 	guint32 wiphy;
@@ -354,10 +385,26 @@ static void network_setupinterfaces() {
 		int remainingnetworks = g_hash_table_size(interfaces);
 		if (remainingnetworks == 1) {
 			g_message("AP interface missing.. will create");
-			network_createapinterface(interfaces, wiphy);
-		} else if (remainingnetworks == 2)
-			g_message("AP interface already exists");
-		else
+			struct network_interface* stainterface;
+			stainterface = g_hash_table_lookup(interfaces, interface);
+			g_assert(stainterface != NULL);
+			network_createapinterface(interfaces, stainterface);
+			struct network_interface* apinterface = g_hash_table_find(
+					interfaces, network_findapinterface, NULL);
+			g_assert(apinterface != NULL);
+			g_message("AP interface created -> %s", apinterface->ifname);
+			apinterfacename = apinterface->ifname;
+		} else if (remainingnetworks == 2) {
+			struct network_interface* apinterface = g_hash_table_find(
+					interfaces, network_findapinterface, NULL);
+			if (apinterface != NULL) {
+				g_message("AP interface already exists -> %s",
+						apinterface->ifname);
+				apinterfacename = apinterface->ifname;
+			} else {
+				g_message("Interface has two VIFs but neither is an AP");
+			}
+		} else
 			g_message("errrrorororo");
 	}
 	g_hash_table_unref(interfaces);
@@ -365,12 +412,23 @@ static void network_setupinterfaces() {
 
 int network_start() {
 	network_setupinterfaces();
-	network_wpasupplicant_start();
+	network_wpasupplicant_start(interface, &stasupplicantpid);
 	network_dhcpclient_start();
 	return 0;
 }
 
 int network_stop() {
+	network_dhcpclient_stop();
+	network_wpasupplicant_stop();
+	return 0;
+}
+
+int network_startap() {
+	network_wpasupplicant_start(apinterfacename, &apsupplicantpid);
+	return 0;
+}
+
+int network_stopap() {
 	return 0;
 }
 
