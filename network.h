@@ -22,7 +22,7 @@ struct network_status {
 	char ssid[NETWORK_SSIDSTORAGELEN];
 };
 
-void network_init(void);
+void network_init(const char* interface);
 int network_start(void);
 int network_stop(void);
 GPtrArray* network_scan(void);

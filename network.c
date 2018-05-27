@@ -7,7 +7,9 @@
 #include "network.h"
 #include "network_priv.h"
 
-static char* interface = "wlxdcfb02a63a12";
+//#define NLDEBUG
+
+static char* stainterfacename;
 static char* apinterfacename;
 static char* wpasupplicantsocketdir = "/tmp/thingy_sockets/";
 
@@ -192,8 +194,8 @@ static void network_wpasupplicant_stop() {
 }
 
 void network_dhcpclient_start() {
-	g_message("starting dhcp client for %s", interface);
-	gchar* args[] = { "/bin/busybox", "udhcpc", "-i", interface, NULL };
+	g_message("starting dhcp client for %s", stainterfacename);
+	gchar* args[] = { "/bin/busybox", "udhcpc", "-i", stainterfacename, NULL };
 	g_spawn_async(NULL, args, NULL, G_SPAWN_DEFAULT, NULL, NULL, &udhcpcpid,
 	NULL);
 }
@@ -203,8 +205,8 @@ void network_dhcpclient_stop() {
 }
 
 void network_dhcpserver_start() {
-	g_message("starting dhcp server for %s", interface);
-	gchar* args[] = { "/bin/busybox", "udhcpd", "-i", interface, NULL };
+	g_message("starting dhcp server for %s", stainterfacename);
+	gchar* args[] = { "/bin/busybox", "udhcpd", "-i", stainterfacename, NULL };
 	g_spawn_async(NULL, args, NULL, G_SPAWN_DEFAULT, NULL, NULL, &udhcpdpid,
 	NULL);
 }
@@ -219,7 +221,9 @@ static void network_interface_free(gpointer data) {
 }
 
 static int network_netlink_interface_callback(struct nl_msg *msg, void *arg) {
+#ifdef NLDEBUG
 	nl_msg_dump(msg, stdout);
+#endif
 
 	struct genlmsghdr *genlhdr = nlmsg_data(nlmsg_hdr(msg));
 	int attrlen = genlmsg_attrlen(genlhdr, 0);
@@ -305,7 +309,8 @@ static gboolean network_netlink_init() {
 	return FALSE;
 }
 
-void network_init() {
+void network_init(const char* interface) {
+	stainterfacename = interface;
 	network_netlink_init();
 	scanresults = g_ptr_array_new();
 }
@@ -379,13 +384,13 @@ static gboolean network_findapinterface(gpointer key, gpointer value,
 static void network_setupinterfaces() {
 	GHashTable* interfaces = network_netlink_listinterfaces();
 	guint32 wiphy;
-	if (network_findphy(interfaces, interface, &wiphy)) {
+	if (network_findphy(interfaces, stainterfacename, &wiphy)) {
 		network_filteroutoutherphys(interfaces, wiphy);
 		int remainingnetworks = g_hash_table_size(interfaces);
 		if (remainingnetworks == 1) {
 			g_message("AP interface missing.. will create");
 			struct network_interface* stainterface;
-			stainterface = g_hash_table_lookup(interfaces, interface);
+			stainterface = g_hash_table_lookup(interfaces, stainterfacename);
 			g_assert(stainterface != NULL);
 			network_createapinterface(interfaces, stainterface);
 			struct network_interface* apinterface = g_hash_table_find(
@@ -411,7 +416,7 @@ static void network_setupinterfaces() {
 
 int network_start() {
 	network_setupinterfaces();
-	network_wpasupplicant_start(interface, &stasupplicantpid);
+	network_wpasupplicant_start(stainterfacename, &stasupplicantpid);
 	network_dhcpclient_start();
 	return 0;
 }
