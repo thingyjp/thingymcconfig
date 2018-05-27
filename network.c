@@ -324,7 +324,7 @@ static void network_createapinterface(GHashTable* interfaces,
 	}
 
 	GString* interfacenamestr = g_string_new(NULL);
-	g_string_printf(interfacenamestr, "%s_ap", stainterface->ifname);
+	g_string_printf(interfacenamestr, "thingy_ap"); //, stainterface->ifname);
 	gchar* interfacename = g_string_free(interfacenamestr, FALSE);
 
 	g_message("creating ap VIF called %s on %d", interfacename,
@@ -332,8 +332,7 @@ static void network_createapinterface(GHashTable* interfaces,
 
 	nl_socket_modify_cb(nlsock, NL_CB_VALID, NL_CB_CUSTOM,
 			network_netlink_interface_callback, interfaces);
-	genlmsg_put(msg, 0, NLM_F_DUMP, nl80211id, 0, 0, NL80211_CMD_NEW_INTERFACE,
-			0);
+	genlmsg_put(msg, 0, 0, nl80211id, 0, 0, NL80211_CMD_NEW_INTERFACE, 0);
 	nla_put_string(msg, NL80211_ATTR_IFNAME, interfacename);
 	nla_put_u32(msg, NL80211_ATTR_IFTYPE, NL80211_IFTYPE_AP);
 	nla_put_u32(msg, NL80211_ATTR_WIPHY, stainterface->wiphy);
