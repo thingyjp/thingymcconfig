@@ -11,7 +11,11 @@
  wpasupplicant
  
  Hardware:
- wifi interface that supports NL80211
+ wifi interface that supports NL80211 and supports a station VIF 
+ and an access point VIF simultaneously. This is apparently less
+ common than you might think. 
+
+ <Insert list of working interfaces here>
 
 -- Protocol --
  
