@@ -92,7 +92,7 @@ static void network_wpasupplicant_getscanresults() {
 	size_t replylen;
 	char* reply = network_wpasupplicant_docommand("SCAN_RESULTS", &replylen);
 	if (reply != NULL) {
-		g_message("%s\n sr: %s", SCANRESULTREGEX, reply);
+		//g_message("%s\n sr: %s", SCANRESULTREGEX, reply);
 		GRegex* networkregex = g_regex_new(SCANRESULTREGEX, 0, 0,
 		NULL);
 		GMatchInfo* matchinfo;
@@ -170,7 +170,7 @@ static gboolean network_wpasupplicant_onevent(GIOChannel *source,
 static void network_wpasupplicant_start(char* interface, GPid* pid) {
 	g_message("starting wpa_supplicant for %s", interface);
 	gchar* args[] = { "/sbin/wpa_supplicant", "-Dnl80211", "-i", interface,
-			"-C", wpasupplicantsocketdir, NULL };
+			"-C", wpasupplicantsocketdir, "-qq", NULL };
 	g_spawn_async(NULL, args, NULL, G_SPAWN_DEFAULT, NULL, NULL, pid,
 	NULL);
 
@@ -355,6 +355,7 @@ static void network_netlink_setlinkstate(struct network_interface* interface,
 	rtnl_link_change(routesock, link, change, 0);
 
 	rtnl_link_put(link);
+	rtnl_link_put(change);
 	out: return;
 }
 
