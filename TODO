@@ -1,0 +1,1 @@
+- Change horrible wpa_supplicant scan result parsing to using nl80211 instead

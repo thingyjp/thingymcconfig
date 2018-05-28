@@ -6,13 +6,13 @@
 #include <linux/nl80211.h>
 #include "network.h"
 #include "network_priv.h"
-
-#define NLDEBUG
+#include "buildconfig.h"
 
 static char* masterinterfacename;
 static char* stainterfacename;
 static char* apinterfacename;
 static char* wpasupplicantsocketdir = "/tmp/thingy_sockets/";
+static gboolean noapinterface;
 
 struct wpa_ctrl* wpa_ctrl = NULL;
 static GPtrArray* scanresults;
@@ -254,11 +254,12 @@ static int network_netlink_interface_callback(struct nl_msg *msg, void *arg) {
 
 static void network_netlink_sendmsgandfree(struct nl_msg* msg) {
 	int ret;
-	if ((ret = nl_send_auto(nlsock, msg)) < 0) {
+	if ((ret = nl_send_sync(nlsock, msg)) < 0) {
 		g_message("failed to send nl message -> %d", ret);
+		nlmsg_free(msg);
 	}
-	nl_recvmsgs_default(nlsock);
-	nlmsg_free(msg);
+	//nl_recvmsgs_default(nlsock);
+
 }
 
 static GHashTable* network_netlink_listinterfaces() {
@@ -273,8 +274,8 @@ static GHashTable* network_netlink_listinterfaces() {
 
 	nl_socket_modify_cb(nlsock, NL_CB_VALID, NL_CB_CUSTOM,
 			network_netlink_interface_callback, interfaces);
-	genlmsg_put(msg, 0, 0, nl80211id, 0, NLM_F_DUMP, NL80211_CMD_GET_INTERFACE,
-			0);
+	genlmsg_put(msg, NL_AUTO_PORT, NL_AUTO_SEQ, nl80211id, 0, NLM_F_DUMP,
+			NL80211_CMD_GET_INTERFACE, 0);
 
 	network_netlink_sendmsgandfree(msg);
 
@@ -310,8 +311,9 @@ static gboolean network_netlink_init() {
 	return FALSE;
 }
 
-void network_init(const char* interface) {
+void network_init(const char* interface, gboolean noap) {
 	masterinterfacename = interface;
+	noapinterface = noap;
 	network_netlink_init();
 	scanresults = g_ptr_array_new();
 }
@@ -339,7 +341,8 @@ static void network_netlink_createvif(GHashTable* interfaces,
 
 	nl_socket_modify_cb(nlsock, NL_CB_VALID, NL_CB_CUSTOM,
 			network_netlink_interface_callback, interfaces);
-	genlmsg_put(msg, 0, 0, nl80211id, 0, 0, NL80211_CMD_NEW_INTERFACE, 0);
+	genlmsg_put(msg, NL_AUTO_PORT, NL_AUTO_SEQ, nl80211id, 0, 0,
+			NL80211_CMD_NEW_INTERFACE, 0);
 	nla_put_string(msg, NL80211_ATTR_IFNAME, interfacename);
 	nla_put_u32(msg, NL80211_ATTR_IFTYPE, type);
 	nla_put_u32(msg, NL80211_ATTR_WIPHY, masterinterface->wiphy);
@@ -393,6 +396,9 @@ static gboolean network_findapinterface(gpointer key, gpointer value,
 		gpointer user_data) {
 	gchar* masterinterfacename = user_data;
 	struct network_interface* interface = value;
+#ifdef DEBUG
+	g_message("interface %s, is ap %d", interface->ifname, (int )interface->ap);
+#endif
 	return strcmp(masterinterfacename, interface->ifname) != 0 && interface->ap;
 }
 
@@ -427,12 +433,16 @@ static void network_setupinterfaces() {
 			}
 			// create the ap VIF
 			{
-				network_createapinterface(interfaces, masterinterface);
-				struct network_interface* apinterface = g_hash_table_find(
-						interfaces, network_findapinterface, masterinterface);
-				g_assert(apinterface != NULL);
-				g_message("AP interface created -> %s", apinterface->ifname);
-				apinterfacename = apinterface->ifname;
+				if (!noapinterface) {
+					network_createapinterface(interfaces, masterinterface);
+					struct network_interface* apinterface = g_hash_table_find(
+							interfaces, network_findapinterface,
+							masterinterface);
+					g_assert(apinterface != NULL);
+					g_message("AP interface created -> %s",
+							apinterface->ifname);
+					apinterfacename = apinterface->ifname;
+				}
 			}
 		} else {
 			g_message(
@@ -457,11 +467,15 @@ int network_stop() {
 }
 
 int network_startap() {
+	if (!noapinterface)
+		return 0;
 	network_wpasupplicant_start(apinterfacename, &apsupplicantpid);
 	return 0;
 }
 
 int network_stopap() {
+	if (!noapinterface)
+		return 0;
 	return 0;
 }
 

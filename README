@@ -16,6 +16,15 @@
  common than you might think. 
 
  <Insert list of working interfaces here>
+ 
+ Chipsets/Drivers that will not work:
+ RTL8188EU and variants	-	Could potentially work with the Realtek
+ 							driver and their weird concurrent interface
+ 							mode but would require lots of work. The
+ 							mac80211 driver doesn't seem to support 
+ rt3071/rt2800usb		-	driver supports nl80211 but can't have a
+ 							station and an ap up at the same time.
+ 
 
 -- Protocol --
  
