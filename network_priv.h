@@ -24,4 +24,5 @@ struct network_interface {
 	guint32 wiphy;
 	gchar* ifname;
 	gboolean ap;
+	guint32 ifidx;
 };

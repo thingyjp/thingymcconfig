@@ -17,7 +17,7 @@ thingymcconfig: thingymcconfig.c \
 	config.o \
 	utils.o \
 	certs.o
-	$(CC) $(CFLAGS) $(LIBMICROHTTPD) $(GLIBJSON) $(LIBNLGENL) -o $@ $^
+	$(CC) $(CFLAGS) $(LIBMICROHTTPD) $(GLIBJSON) $(LIBNLGENL) $(LIBNLROUTE) -o $@ $^
 
 http.o: http.c http.h
 	$(CC) $(CFLAGS) $(LIBMICROHTTPD) $(GLIBJSON) -c -o $@ $<

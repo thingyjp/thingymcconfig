@@ -3,7 +3,10 @@
 #include <netlink/socket.h>
 #include <netlink/genl/genl.h>
 #include <netlink/genl/ctrl.h>
+#include <netlink/route/route.h>
+#include <netlink/route/link.h>
 #include <linux/nl80211.h>
+#include <linux/if.h>
 #include "network.h"
 #include "network_priv.h"
 #include "buildconfig.h"
@@ -17,7 +20,8 @@ static gboolean noapinterface;
 struct wpa_ctrl* wpa_ctrl = NULL;
 static GPtrArray* scanresults;
 
-static struct nl_sock* nlsock;
+static struct nl_sock* nl80211sock;
+static struct nl_sock* routesock;
 static int nl80211id;
 
 static GPid udhcpcpid, udhcpdpid, stasupplicantpid, apsupplicantpid;
@@ -244,6 +248,10 @@ static int network_netlink_interface_callback(struct nl_msg *msg, void *arg) {
 			break;
 		case NL80211_ATTR_IFTYPE:
 			interface->ap = nla_get_u32(nla) == NL80211_IFTYPE_AP;
+			break;
+		case NL80211_ATTR_IFINDEX:
+			interface->ifidx = nla_get_u32(nla);
+			break;
 		}
 	}
 	GHashTable* interfaces = arg;
@@ -254,7 +262,7 @@ static int network_netlink_interface_callback(struct nl_msg *msg, void *arg) {
 
 static void network_netlink_sendmsgandfree(struct nl_msg* msg) {
 	int ret;
-	if ((ret = nl_send_sync(nlsock, msg)) < 0) {
+	if ((ret = nl_send_sync(nl80211sock, msg)) < 0) {
 		g_message("failed to send nl message -> %d", ret);
 		nlmsg_free(msg);
 	}
@@ -272,7 +280,7 @@ static GHashTable* network_netlink_listinterfaces() {
 	GHashTable* interfaces = g_hash_table_new_full(g_str_hash, g_str_equal,
 	NULL, network_interface_free);
 
-	nl_socket_modify_cb(nlsock, NL_CB_VALID, NL_CB_CUSTOM,
+	nl_socket_modify_cb(nl80211sock, NL_CB_VALID, NL_CB_CUSTOM,
 			network_netlink_interface_callback, interfaces);
 	genlmsg_put(msg, NL_AUTO_PORT, NL_AUTO_SEQ, nl80211id, 0, NLM_F_DUMP,
 			NL80211_CMD_GET_INTERFACE, 0);
@@ -286,27 +294,30 @@ static GHashTable* network_netlink_listinterfaces() {
 }
 
 static gboolean network_netlink_init() {
-	nlsock = nl_socket_alloc();
-	if (nlsock == NULL) {
-		g_message("failed to create netlink socket");
+	nl80211sock = nl_socket_alloc();
+	if (nl80211sock == NULL) {
+		g_message("failed to create nl80211 socket");
 		goto err_sock;
 	}
-	if (genl_connect(nlsock)) {
-		g_message("failed to connect netlink socket");
+	if (genl_connect(nl80211sock)) {
+		g_message("failed to connect nl80211 socket");
 		goto err_connect;
 	}
 
-	nl80211id = genl_ctrl_resolve(nlsock, "nl80211");
+	nl80211id = genl_ctrl_resolve(nl80211sock, "nl80211");
 	if (nl80211id == 0) {
 		g_message("failed to resolve nl80211");
 		goto err_resolve;
 	}
 
+	routesock = nl_socket_alloc();
+	nl_connect(routesock, NETLINK_ROUTE);
+
 	return TRUE;
 
 	err_resolve: //
 	err_connect: //
-	nl_socket_free(nlsock);
+	nl_socket_free(nl80211sock);
 	err_sock: //
 	return FALSE;
 }
@@ -320,6 +331,31 @@ void network_init(const char* interface, gboolean noap) {
 
 void network_cleanup() {
 
+}
+
+static void network_netlink_setlinkstate(struct network_interface* interface,
+		gboolean up) {
+	g_message("setting link state on %s", interface->ifname);
+	struct nl_cache* cache;
+	// how do you free this?
+	int ret;
+	if ((ret = rtnl_link_alloc_cache(routesock, AF_UNSPEC, &cache)) < 0) {
+		g_message("failed to populate link cache -> %d", ret);
+		goto out;
+	}
+	struct rtnl_link* link = rtnl_link_get(cache, interface->ifidx);
+	if (link == NULL) {
+		g_message("didn't find link");
+		goto out;
+	}
+
+	struct rtnl_link* change = rtnl_link_alloc();
+	rtnl_link_unset_flags(change, IFF_UP);
+
+	rtnl_link_change(routesock, link, change, 0);
+
+	rtnl_link_put(link);
+	out: return;
 }
 
 static void network_netlink_createvif(GHashTable* interfaces,
@@ -339,7 +375,7 @@ static void network_netlink_createvif(GHashTable* interfaces,
 	g_message("creating a VIF called %s on %d", interfacename,
 			masterinterface->wiphy);
 
-	nl_socket_modify_cb(nlsock, NL_CB_VALID, NL_CB_CUSTOM,
+	nl_socket_modify_cb(nl80211sock, NL_CB_VALID, NL_CB_CUSTOM,
 			network_netlink_interface_callback, interfaces);
 	genlmsg_put(msg, NL_AUTO_PORT, NL_AUTO_SEQ, nl80211id, 0, 0,
 			NL80211_CMD_NEW_INTERFACE, 0);
@@ -416,6 +452,10 @@ static void network_setupinterfaces() {
 		network_filteroutoutherphys(interfaces, wiphy);
 		int remainingnetworks = g_hash_table_size(interfaces);
 		if (remainingnetworks == 1) {
+			network_netlink_setlinkstate(
+					g_hash_table_lookup(interfaces, masterinterfacename),
+					FALSE);
+
 			g_message("interfaces missing.. will create");
 			struct network_interface* masterinterface;
 			masterinterface = g_hash_table_lookup(interfaces,
