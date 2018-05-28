@@ -3,7 +3,9 @@ CFLAGS=-ggdb
 LIBMICROHTTPD=`$(PKGCONFIG) --cflags --libs libmicrohttpd`
 GLIBJSON=`$(PKGCONFIG) --libs --cflags json-glib-1.0`
 HOSTAPD=-Ihostap/src/common/ -Ihostap/src/utils/
+
 LIBNLGENL=`pkg-config --cflags --libs libnl-genl-3.0`
+LIBNLROUTE=`pkg-config --cflags --libs libnl-route-3.0`
 
 .PHONY: clean
 
@@ -21,7 +23,7 @@ http.o: http.c http.h
 	$(CC) $(CFLAGS) $(LIBMICROHTTPD) $(GLIBJSON) -c -o $@ $<
 
 network.o: network.c network.h
-	$(CC) $(CFLAGS) $(GLIBJSON) $(HOSTAPD) $(LIBNLGENL) -c -o $@ $<
+	$(CC) $(CFLAGS) $(GLIBJSON) $(HOSTAPD) $(LIBNLGENL) $(LIBNLROUTE) -c -o $@ $<
 
 config.o: config.c config.h
 	$(CC) $(CFLAGS) $(GLIBJSON) -c -o $@ $<

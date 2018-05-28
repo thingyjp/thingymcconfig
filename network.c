@@ -8,7 +8,7 @@
 #include "network_priv.h"
 #include "buildconfig.h"
 
-static char* masterinterfacename;
+static const char* masterinterfacename;
 static char* stainterfacename;
 static char* apinterfacename;
 static char* wpasupplicantsocketdir = "/tmp/thingy_sockets/";

@@ -14,7 +14,7 @@ int main(int argc, char** argv) {
 	GOptionEntry entries[] = { { "interface", 'i', 0, G_OPTION_ARG_STRING,
 			&interface, "interface", NULL },
 #ifdef DEVELOPMENT
-			{ "noap", "n", 0, G_OPTION_ARG_NONE, &noap,
+			{ "noap", 'n', 0, G_OPTION_ARG_NONE, &noap,
 					"don't create an ap, only useful for development", NULL },
 #endif
 			{ NULL } };
