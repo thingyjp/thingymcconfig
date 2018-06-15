@@ -526,6 +526,7 @@ GPtrArray* network_scan() {
 }
 
 void network_addnetwork(struct network_config* ntwkcfg) {
+	g_message("adding network %s with psk %s", ntwkcfg->ssid, ntwkcfg->psk);
 	gsize respsz;
 	gchar* resp = network_wpasupplicant_docommand("ADD_NETWORK", &respsz);
 	g_free(resp);
