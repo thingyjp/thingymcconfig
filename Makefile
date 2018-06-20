@@ -4,8 +4,8 @@ LIBMICROHTTPD=`$(PKGCONFIG) --cflags --libs libmicrohttpd`
 GLIBJSON=`$(PKGCONFIG) --libs --cflags json-glib-1.0`
 HOSTAPD=-Ihostap/src/common/ -Ihostap/src/utils/
 
-LIBNLGENL=`pkg-config --cflags --libs libnl-genl-3.0`
-LIBNLROUTE=`pkg-config --cflags --libs libnl-route-3.0`
+LIBNLGENL=`$(PKGCONFIG) --cflags --libs libnl-genl-3.0`
+LIBNLROUTE=`$(PKGCONFIG) --cflags --libs libnl-route-3.0`
 
 .PHONY: clean
 
