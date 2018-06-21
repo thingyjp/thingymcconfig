@@ -14,6 +14,9 @@
 #define IFNAMESUFFIX_STA	"sta"
 #define IFNAMESUFFIX_AP		"ap"
 
+#define WPASUPPLICANT_NETWORKMODE_STA	0
+#define WPASUPPLICANT_NETWORKMODE_AP	2
+
 static const char* masterinterfacename;
 static char* stainterfacename;
 static char* apinterfacename;
@@ -553,10 +556,58 @@ int network_stop() {
 	return 0;
 }
 
+static void network_addnetwork_internal(const gchar* ssid, const gchar* psk,
+		unsigned mode) {
+	g_message("adding network %s with psk %s", ssid, psk);
+	gsize respsz;
+	gchar* resp = network_wpasupplicant_docommand("ADD_NETWORK", &respsz);
+	g_free(resp);
+
+	{
+		GString* ssidcmdstr = g_string_new(NULL);
+		g_string_printf(ssidcmdstr, "SET_NETWORK %d ssid \"%s\"", 0, ssid);
+		gchar* ssidcmd = g_string_free(ssidcmdstr, FALSE);
+		resp = network_wpasupplicant_docommand(ssidcmd, &respsz);
+		g_free(ssidcmd);
+		g_free(resp);
+	}
+
+	{
+		GString* pskcmdstr = g_string_new(NULL);
+		g_string_printf(pskcmdstr, "SET_NETWORK %d psk \"%s\"", 0, psk);
+		gchar* pskcmd = g_string_free(pskcmdstr, FALSE);
+		resp = network_wpasupplicant_docommand(pskcmd, &respsz);
+		g_free(pskcmd);
+		g_free(resp);
+	}
+
+	{
+		GString* modecmdstr = g_string_new(NULL);
+		g_string_printf(modecmdstr, "SET_NETWORK %d mode %d", 0, mode);
+		gchar* modecmd = g_string_free(modecmdstr, FALSE);
+		resp = network_wpasupplicant_docommand(modecmd, &respsz);
+		g_free(modecmd);
+		g_free(resp);
+	}
+}
+
+static void network_wpasupplicant_selectnetwork(int which) {
+	gsize respsz;
+	GString* selectcmdstr = g_string_new(NULL);
+	g_string_printf(selectcmdstr, "SELECT_NETWORK %d", 0);
+	gchar* selectcmd = g_string_free(selectcmdstr, FALSE);
+	gchar* resp = network_wpasupplicant_docommand(selectcmd, &respsz);
+	g_free(selectcmd);
+	g_free(resp);
+}
+
 int network_startap() {
 	if (!noapinterface)
 		return 0;
 	network_wpasupplicant_start(apinterfacename, &apsupplicantpid);
+	network_addnetwork_internal("mythingy", "reallysecurepassword",
+	WPASUPPLICANT_NETWORKMODE_AP);
+	network_wpasupplicant_selectnetwork(0);
 	return 0;
 }
 
@@ -572,31 +623,12 @@ GPtrArray* network_scan() {
 }
 
 void network_addnetwork(struct network_config* ntwkcfg) {
-	g_message("adding network %s with psk %s", ntwkcfg->ssid, ntwkcfg->psk);
+	network_addnetwork_internal(ntwkcfg->ssid, ntwkcfg->psk,
+	WPASUPPLICANT_NETWORKMODE_STA);
 	gsize respsz;
-	gchar* resp = network_wpasupplicant_docommand("ADD_NETWORK", &respsz);
-	g_free(resp);
+	gchar* resp;
 
-	GString* ssidcmdstr = g_string_new(NULL);
-	g_string_printf(ssidcmdstr, "SET_NETWORK %d ssid \"%s\"", 0, ntwkcfg->ssid);
-	gchar* ssidcmd = g_string_free(ssidcmdstr, FALSE);
-	resp = network_wpasupplicant_docommand(ssidcmd, &respsz);
-	g_free(ssidcmd);
-	g_free(resp);
-
-	GString* pskcmdstr = g_string_new(NULL);
-	g_string_printf(pskcmdstr, "SET_NETWORK %d psk \"%s\"", 0, ntwkcfg->psk);
-	gchar* pskcmd = g_string_free(pskcmdstr, FALSE);
-	resp = network_wpasupplicant_docommand(pskcmd, &respsz);
-	g_free(pskcmd);
-	g_free(resp);
-
-	GString* selectcmdstr = g_string_new(NULL);
-	g_string_printf(selectcmdstr, "SELECT_NETWORK %d", 0);
-	gchar* selectcmd = g_string_free(selectcmdstr, FALSE);
-	resp = network_wpasupplicant_docommand(selectcmd, &respsz);
-	g_free(selectcmd);
-	g_free(resp);
+	network_wpasupplicant_selectnetwork(0);
 }
 
 struct network_config* network_parseconfig(JsonNode* root) {
