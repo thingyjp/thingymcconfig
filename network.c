@@ -170,12 +170,15 @@ static gboolean network_wpasupplicant_onevent(GIOChannel *source,
 	return TRUE;
 }
 
-static void network_wpasupplicant_start(char* interface, GPid* pid) {
+static void network_wpasupplicant_start(const char* interface, GPid* pid) {
 	g_message("starting wpa_supplicant for %s", interface);
-	gchar* args[] = { "/sbin/wpa_supplicant", "-Dnl80211", "-i", interface,
+	gchar* args[] = { WPASUPPLICANT_BINARYPATH, "-Dnl80211", "-i", interface,
 			"-C", wpasupplicantsocketdir, "-qq", NULL };
-	g_spawn_async(NULL, args, NULL, G_SPAWN_DEFAULT, NULL, NULL, pid,
-	NULL);
+	if (!g_spawn_async(NULL, args, NULL, G_SPAWN_DEFAULT, NULL, NULL, pid,
+	NULL)) {
+		g_message("failed to start wpa_supplicant");
+		return;
+	}
 
 	g_usleep(2 * 1000000);
 
