@@ -11,6 +11,9 @@
 #include "network_priv.h"
 #include "buildconfig.h"
 
+#define IFNAMESUFFIX_STA	"sta"
+#define IFNAMESUFFIX_AP		"ap"
+
 static const char* masterinterfacename;
 static char* stainterfacename;
 static char* apinterfacename;
@@ -246,8 +249,10 @@ static int network_netlink_interface_callback(struct nl_msg *msg, void *arg) {
 		case NL80211_ATTR_WIPHY:
 			interface->wiphy = nla_get_u32(nla);
 			break;
-		case NL80211_ATTR_IFTYPE:
-			interface->ap = nla_get_u32(nla) == NL80211_IFTYPE_AP;
+		case NL80211_ATTR_IFTYPE: {
+			uint32_t type = nla_get_u32(nla);
+			interface->ap = type == NL80211_IFTYPE_AP;
+		}
 			break;
 		case NL80211_ATTR_IFINDEX:
 			interface->ifidx = nla_get_u32(nla);
@@ -359,6 +364,14 @@ static void network_netlink_setlinkstate(struct network_interface* interface,
 	out: return;
 }
 
+static gchar* network_generatevifname(const gchar* masterifname,
+		const gchar* suffix) {
+	GString* interfacenamestr = g_string_new(NULL);
+	g_string_printf(interfacenamestr, "%s_%s", masterifname, suffix);
+	gchar* interfacename = g_string_free(interfacenamestr, FALSE);
+	return interfacename;
+}
+
 static void network_netlink_createvif(GHashTable* interfaces,
 		struct network_interface* masterinterface, const gchar* suffix,
 		guint32 type) {
@@ -369,9 +382,8 @@ static void network_netlink_createvif(GHashTable* interfaces,
 		goto err_allocmsg;
 	}
 
-	GString* interfacenamestr = g_string_new(NULL);
-	g_string_printf(interfacenamestr, "%s_%s", masterinterface->ifname, suffix);
-	gchar* interfacename = g_string_free(interfacenamestr, FALSE);
+	gchar* interfacename = network_generatevifname(masterinterface->ifname,
+			suffix);
 
 	g_message("creating a VIF called %s on %d", interfacename,
 			masterinterface->wiphy);
@@ -396,13 +408,13 @@ static void network_netlink_createvif(GHashTable* interfaces,
 
 static void network_createapinterface(GHashTable* interfaces,
 		struct network_interface* masterinterface) {
-	network_netlink_createvif(interfaces, masterinterface, "ap",
+	network_netlink_createvif(interfaces, masterinterface, IFNAMESUFFIX_AP,
 			NL80211_IFTYPE_AP);
 }
 
 static void network_createstainterface(GHashTable* interfaces,
 		struct network_interface* masterinterface) {
-	network_netlink_createvif(interfaces, masterinterface, "sta",
+	network_netlink_createvif(interfaces, masterinterface, IFNAMESUFFIX_STA,
 			NL80211_IFTYPE_STATION);
 }
 
@@ -434,16 +446,30 @@ static gboolean network_findapinterface(gpointer key, gpointer value,
 	gchar* masterinterfacename = user_data;
 	struct network_interface* interface = value;
 #ifdef DEBUG
-	g_message("interface %s, is ap %d", interface->ifname, (int )interface->ap);
+	g_message("interface %s, is ap %d, %s", interface->ifname,
+			(int )interface->ap, masterinterfacename);
 #endif
-	return strcmp(masterinterfacename, interface->ifname) != 0 && interface->ap;
+	//return strcmp(masterinterfacename, interface->ifname) != 0 && interface->ap;
+
+	gchar* apifname = network_generatevifname(masterinterfacename,
+	IFNAMESUFFIX_AP);
+	gboolean ret = strcmp(interface->ifname, apifname) == 0;
+	g_free(apifname);
+	return ret;
 }
 
 static gboolean network_findstainterface(gpointer key, gpointer value,
 		gpointer user_data) {
 	gchar* masterinterfacename = user_data;
 	struct network_interface* interface = value;
-	return strcmp(masterinterfacename, interface->ifname) != 0 && !interface->ap;
+
+	//return strcmp(masterinterfacename, interface->ifname) != 0 && !interface->ap;
+
+	gchar* staifname = network_generatevifname(masterinterfacename,
+	IFNAMESUFFIX_STA);
+	gboolean ret = strcmp(interface->ifname, staifname) == 0;
+	g_free(staifname);
+	return ret;
 }
 
 static void network_setupinterfaces() {
@@ -467,7 +493,8 @@ static void network_setupinterfaces() {
 			{
 				network_createstainterface(interfaces, masterinterface);
 				struct network_interface* stainterface = g_hash_table_find(
-						interfaces, network_findstainterface, masterinterface);
+						interfaces, network_findstainterface,
+						masterinterface->ifname);
 				g_assert(stainterface != NULL);
 				g_message("STA interface created -> %s", stainterface->ifname);
 				stainterfacename = stainterface->ifname;
@@ -478,13 +505,29 @@ static void network_setupinterfaces() {
 					network_createapinterface(interfaces, masterinterface);
 					struct network_interface* apinterface = g_hash_table_find(
 							interfaces, network_findapinterface,
-							masterinterface);
+							masterinterface->ifname);
 					g_assert(apinterface != NULL);
 					g_message("AP interface created -> %s",
 							apinterface->ifname);
 					apinterfacename = apinterface->ifname;
 				}
 			}
+		} else if (remainingnetworks == 3) {
+			struct network_interface* masterinterface;
+			masterinterface = g_hash_table_lookup(interfaces,
+					masterinterfacename);
+			g_assert(masterinterface != NULL);
+			struct network_interface* sta = g_hash_table_find(interfaces,
+					network_findstainterface, masterinterface->ifname);
+			g_assert(sta != NULL);
+			stainterfacename = sta->ifname;
+			struct network_interface* ap = g_hash_table_find(interfaces,
+					network_findapinterface, masterinterface->ifname);
+			g_assert(ap != NULL);
+			apinterfacename = ap->ifname;
+
+			g_message("reusing existing interfaces %s and %s", stainterfacename,
+					apinterfacename);
 		} else {
 			g_message(
 					"FIXME: Add handling for already configured, half configured situations");
