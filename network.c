@@ -602,7 +602,7 @@ static void network_wpasupplicant_selectnetwork(int which) {
 }
 
 int network_startap() {
-	if (!noapinterface)
+	if (noapinterface)
 		return 0;
 	network_wpasupplicant_start(apinterfacename, &apsupplicantpid);
 	network_addnetwork_internal("mythingy", "reallysecurepassword",

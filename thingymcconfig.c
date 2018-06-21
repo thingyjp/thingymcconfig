@@ -38,9 +38,8 @@ int main(int argc, char** argv) {
 	network_start();
 	http_start();
 
-	if (!noap)
-		//todo should only be called when entering provisioning mode
-		network_startap();
+	//todo should only be called when entering provisioning mode
+	network_startap();
 
 	g_main_loop_run(mainloop);
 
