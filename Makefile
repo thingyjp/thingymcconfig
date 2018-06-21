@@ -7,6 +7,10 @@ HOSTAPD=-Ihostap/src/common/ -Ihostap/src/utils/
 LIBNLGENL=`$(PKGCONFIG) --cflags --libs libnl-genl-3.0`
 LIBNLROUTE=`$(PKGCONFIG) --cflags --libs libnl-route-3.0`
 
+ifdef WPASUPPLICANT_BINARYPATH
+	CFLAGS+= -D WPASUPPLICANT_BINARYPATH=\"$(WPASUPPLICANT_BINARYPATH)\"
+endif
+
 .PHONY: clean
 
 thingymcconfig: thingymcconfig.c \
