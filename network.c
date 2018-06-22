@@ -5,6 +5,7 @@
 #include <netlink/genl/ctrl.h>
 #include <netlink/route/route.h>
 #include <netlink/route/link.h>
+#include <netlink/route/addr.h>
 #include <linux/nl80211.h>
 #include <linux/if.h>
 #include "network.h"
@@ -19,7 +20,10 @@
 
 static const char* masterinterfacename;
 static char* stainterfacename;
+
 static char* apinterfacename;
+static int apinterfaceindex;
+
 static char* wpasupplicantsocketdir = "/tmp/thingy_sockets/";
 static gboolean noapinterface;
 
@@ -30,7 +34,7 @@ static struct nl_sock* nl80211sock;
 static struct nl_sock* routesock;
 static int nl80211id;
 
-static GPid udhcpcpid, udhcpdpid, stasupplicantpid, apsupplicantpid;
+static GPid dhcpcpid, dhcpdpid, stasupplicantpid, apsupplicantpid;
 
 #define MATCHBSSID "((?:[0-9a-f]{2}:{0,1}){6})"
 #define MATCHFREQ "([1-9]{4})"
@@ -209,24 +213,28 @@ static void network_wpasupplicant_stop() {
 
 void network_dhcpclient_start() {
 	g_message("starting dhcp client for %s", stainterfacename);
-	gchar* args[] = { "/bin/busybox", "udhcpc", "-i", stainterfacename, NULL };
-	g_spawn_async(NULL, args, NULL, G_SPAWN_DEFAULT, NULL, NULL, &udhcpcpid,
-	NULL);
+	gchar* args[] = { DHCPC_BINARYPATH, stainterfacename, NULL };
+	if (!g_spawn_async(NULL, args, NULL, G_SPAWN_DEFAULT, NULL, NULL, &dhcpcpid,
+	NULL)) {
+		g_message("failed to start dhcp client for %s");
+	}
 }
 
 void network_dhcpclient_stop() {
-	g_spawn_close_pid(udhcpcpid);
+	g_spawn_close_pid(dhcpcpid);
 }
 
 void network_dhcpserver_start() {
-	g_message("starting dhcp server for %s", stainterfacename);
-	gchar* args[] = { "/bin/busybox", "udhcpd", "-i", stainterfacename, NULL };
-	g_spawn_async(NULL, args, NULL, G_SPAWN_DEFAULT, NULL, NULL, &udhcpdpid,
-	NULL);
+	g_message("starting dhcp server for %s", apinterfacename);
+	gchar* args[] = { DHCPD_BINARYPATH, apinterfacename, NULL };
+	if (!g_spawn_async(NULL, args, NULL, G_SPAWN_DEFAULT, NULL, NULL, &dhcpdpid,
+	NULL)) {
+		g_message("failed to start dhcp server for %s");
+	}
 }
 
 void network_dhcpserver_stop() {
-	g_spawn_close_pid(udhcpdpid);
+	g_spawn_close_pid(dhcpdpid);
 }
 
 static void network_interface_free(gpointer data) {
@@ -368,6 +376,22 @@ static void network_netlink_setlinkstate(struct network_interface* interface,
 	rtnl_link_put(link);
 	rtnl_link_put(change);
 	out: return;
+}
+
+static void network_netlink_setipv4addr(int ifidx, const char* addrstr) {
+	struct nl_addr* localaddr;
+	nl_addr_parse(addrstr, AF_INET, &localaddr);
+
+	struct rtnl_addr* addr = rtnl_addr_alloc();
+
+	rtnl_addr_set_ifindex(addr, ifidx);
+	rtnl_addr_set_local(addr, localaddr);
+
+	if (rtnl_addr_add(routesock, addr, 0) != 0)
+		g_message("failed to set v4 addr");
+
+	rtnl_addr_put(addr);
+	nl_addr_put(localaddr);
 }
 
 static gchar* network_generatevifname(const gchar* masterifname,
@@ -516,6 +540,7 @@ static void network_setupinterfaces() {
 					g_message("AP interface created -> %s",
 							apinterface->ifname);
 					apinterfacename = apinterface->ifname;
+					apinterfaceindex = apinterface->ifidx;
 				}
 			}
 		} else if (remainingnetworks == 3) {
@@ -531,6 +556,7 @@ static void network_setupinterfaces() {
 					network_findapinterface, masterinterface->ifname);
 			g_assert(ap != NULL);
 			apinterfacename = ap->ifname;
+			apinterfaceindex = ap->ifidx;
 
 			g_message("reusing existing interfaces %s and %s", stainterfacename,
 					apinterfacename);
@@ -604,10 +630,13 @@ static void network_wpasupplicant_selectnetwork(int which) {
 int network_startap() {
 	if (noapinterface)
 		return 0;
+
+	network_netlink_setipv4addr(apinterfaceindex, "10.0.0.1/30");
 	network_wpasupplicant_start(apinterfacename, &apsupplicantpid);
 	network_addnetwork_internal("mythingy", "reallysecurepassword",
 	WPASUPPLICANT_NETWORKMODE_AP);
 	network_wpasupplicant_selectnetwork(0);
+	network_dhcpserver_start();
 	return 0;
 }
 

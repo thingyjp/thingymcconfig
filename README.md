@@ -5,9 +5,10 @@ a Linux based IoT device.
 ## Requirements
 
 ### Software
-libmicrohttpd with TLS enabled
-udhcpd/udhcpc (part of busybox)
-wpasupplicant
+* libmicrohttpd with TLS enabled
+* ISC dhclient and dhcpd
+* wpasupplicant
+* libnl
  
 ### Hardware:
 wifi interface that supports NL80211 and supports a station VIF 
@@ -39,6 +40,6 @@ might work.
 ### Scanning
 
 ### Configuring
-curl -H "Content-Type: application/json" '{"ssid":"mynetwork", "psk":"mypassword"}' -v "http://127.0.0.1:1338/config"
+```curl -H "Content-Type: application/json" '{"ssid":"mynetwork", "psk":"mypassword"}' -v "http://127.0.0.1:1338/config"```
 
 ### Status
