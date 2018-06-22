@@ -213,7 +213,7 @@ static void network_wpasupplicant_stop() {
 
 void network_dhcpclient_start() {
 	g_message("starting dhcp client for %s", stainterfacename);
-	gchar* args[] = { DHCPC_BINARYPATH, stainterfacename, NULL };
+	gchar* args[] = { DHCPC_BINARYPATH, "-d", stainterfacename, NULL };
 	if (!g_spawn_async(NULL, args, NULL, G_SPAWN_DEFAULT, NULL, NULL, &dhcpcpid,
 	NULL)) {
 		g_message("failed to start dhcp client for %s");
@@ -226,7 +226,7 @@ void network_dhcpclient_stop() {
 
 void network_dhcpserver_start() {
 	g_message("starting dhcp server for %s", apinterfacename);
-	gchar* args[] = { DHCPD_BINARYPATH, apinterfacename, NULL };
+	gchar* args[] = { DHCPD_BINARYPATH, "-f", apinterfacename, NULL };
 	if (!g_spawn_async(NULL, args, NULL, G_SPAWN_DEFAULT, NULL, NULL, &dhcpdpid,
 	NULL)) {
 		g_message("failed to start dhcp server for %s");
