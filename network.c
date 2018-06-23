@@ -281,12 +281,8 @@ static int network_netlink_interface_callback(struct nl_msg *msg, void *arg) {
 
 static void network_netlink_sendmsgandfree(struct nl_msg* msg) {
 	int ret;
-	if ((ret = nl_send_sync(nl80211sock, msg)) < 0) {
+	if ((ret = nl_send_sync(nl80211sock, msg)) < 0)
 		g_message("failed to send nl message -> %d", ret);
-		nlmsg_free(msg);
-	}
-	//nl_recvmsgs_default(nlsock);
-
 }
 
 static GHashTable* network_netlink_listinterfaces() {
@@ -427,6 +423,7 @@ static void network_netlink_createvif(GHashTable* interfaces,
 	nla_put_u32(msg, NL80211_ATTR_WIPHY, masterinterface->wiphy);
 
 	network_netlink_sendmsgandfree(msg);
+	nl_recvmsgs_default(nl80211sock);
 
 	g_free(interfacename);
 
