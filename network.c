@@ -276,7 +276,7 @@ static int network_netlink_interface_callback(struct nl_msg *msg, void *arg) {
 	GHashTable* interfaces = arg;
 	g_hash_table_insert(interfaces, interface->ifname, interface);
 
-	return NL_SKIP;
+	return NL_OK;
 }
 
 static void network_netlink_sendmsgandfree(struct nl_msg* msg) {
@@ -561,8 +561,7 @@ static void network_setupinterfaces() {
 			g_message("reusing existing interfaces %s and %s", stainterfacename,
 					apinterfacename);
 		} else {
-			g_message(
-					"FIXME: Add handling for already configured, half configured situations");
+			g_message("FIXME: Add handling half configured situations");
 			g_assert(FALSE);
 		}
 	}
