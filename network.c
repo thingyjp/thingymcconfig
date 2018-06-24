@@ -499,9 +499,11 @@ static gboolean network_findstainterface(gpointer key, gpointer value,
 	return ret;
 }
 
-static void network_setupinterfaces() {
+static gboolean network_setupinterfaces() {
 	GHashTable* interfaces = network_netlink_listinterfaces();
 	guint32 wiphy;
+	gboolean ret = FALSE;
+
 	if (network_findphy(interfaces, masterinterfacename, &wiphy)) {
 		network_filteroutoutherphys(interfaces, wiphy);
 		int remainingnetworks = g_hash_table_size(interfaces);
@@ -540,6 +542,8 @@ static void network_setupinterfaces() {
 					apinterfaceindex = apinterface->ifidx;
 				}
 			}
+
+			ret = TRUE;
 		} else if (remainingnetworks == 3) {
 			struct network_interface* masterinterface;
 			masterinterface = g_hash_table_lookup(interfaces,
@@ -557,16 +561,20 @@ static void network_setupinterfaces() {
 
 			g_message("reusing existing interfaces %s and %s", stainterfacename,
 					apinterfacename);
+
+			ret = TRUE;
 		} else {
 			g_message("FIXME: Add handling half configured situations");
-			g_assert(FALSE);
 		}
 	}
 	g_hash_table_unref(interfaces);
+
+	return ret;
 }
 
 int network_start() {
-	network_setupinterfaces();
+	if (!network_setupinterfaces())
+		return -1;
 	network_wpasupplicant_start(stainterfacename, &stasupplicantpid);
 	network_dhcpclient_start();
 	return 0;

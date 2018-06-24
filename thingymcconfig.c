@@ -9,6 +9,7 @@ int main(int argc, char** argv) {
 
 	gchar* interface = NULL;
 	gboolean noap = FALSE;
+	int ret = 0;
 
 	GError* error;
 	GOptionEntry entries[] = { { "interface", 'i', 0, G_OPTION_ARG_STRING,
@@ -36,6 +37,7 @@ int main(int argc, char** argv) {
 	network_init(interface, noap);
 
 	network_start();
+
 	http_start();
 
 	//todo should only be called when entering provisioning mode
@@ -46,5 +48,5 @@ int main(int argc, char** argv) {
 	http_stop();
 	network_stop();
 
-	out: return 0;
+	out: return ret;
 }
