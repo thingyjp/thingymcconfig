@@ -181,8 +181,10 @@ static void network_wpasupplicant_start(const char* interface, GPid* pid) {
 	g_message("starting wpa_supplicant for %s", interface);
 	gchar* args[] = { WPASUPPLICANT_BINARYPATH, "-Dnl80211", "-i", interface,
 			"-C", wpasupplicantsocketdir, "-qq", NULL };
-	if (!g_spawn_async(NULL, args, NULL, G_SPAWN_DEFAULT, NULL, NULL, pid,
-	NULL)) {
+	if (!g_spawn_async(NULL, args, NULL,
+			G_SPAWN_STDOUT_TO_DEV_NULL | G_SPAWN_STDERR_TO_DEV_NULL, NULL, NULL,
+			pid,
+			NULL)) {
 		g_message("failed to start wpa_supplicant");
 		return;
 	}
@@ -212,10 +214,13 @@ static void network_wpasupplicant_stop() {
 }
 
 void network_dhcpclient_start() {
+
 	g_message("starting dhcp client for %s", stainterfacename);
 	gchar* args[] = { DHCPC_BINARYPATH, "-d", stainterfacename, NULL };
-	if (!g_spawn_async(NULL, args, NULL, G_SPAWN_DEFAULT, NULL, NULL, &dhcpcpid,
-	NULL)) {
+	if (!g_spawn_async(NULL, args, NULL,
+			G_SPAWN_STDOUT_TO_DEV_NULL | G_SPAWN_STDERR_TO_DEV_NULL, NULL, NULL,
+			&dhcpcpid,
+			NULL)) {
 		g_message("failed to start dhcp client for %s");
 	}
 }
@@ -227,8 +232,10 @@ void network_dhcpclient_stop() {
 void network_dhcpserver_start() {
 	g_message("starting dhcp server for %s", apinterfacename);
 	gchar* args[] = { DHCPD_BINARYPATH, "-f", apinterfacename, NULL };
-	if (!g_spawn_async(NULL, args, NULL, G_SPAWN_DEFAULT, NULL, NULL, &dhcpdpid,
-	NULL)) {
+	if (!g_spawn_async(NULL, args, NULL,
+			G_SPAWN_STDOUT_TO_DEV_NULL | G_SPAWN_STDERR_TO_DEV_NULL, NULL, NULL,
+			&dhcpdpid,
+			NULL)) {
 		g_message("failed to start dhcp server for %s");
 	}
 }
