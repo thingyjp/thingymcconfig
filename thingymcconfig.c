@@ -12,7 +12,7 @@ int main(int argc, char** argv) {
 	gboolean noap = FALSE;
 	int ret = 0;
 
-	GError* error;
+	GError* error = NULL;
 	GOptionEntry entries[] = { { "interface", 'i', 0, G_OPTION_ARG_STRING,
 			&interface, "interface", NULL }, { "waitforinterface", 'w', 0,
 			G_OPTION_ARG_NONE, &waitforinterface,
