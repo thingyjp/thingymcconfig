@@ -584,9 +584,9 @@ int network_waitforinterface() {
 	//TODO this probably shouldn't poll
 	while (TRUE) {
 		GHashTable* interfaces = network_netlink_listinterfaces();
-		g_hash_table_unref(interfaces);
 		if (g_hash_table_contains(interfaces, masterinterfacename))
 			break;
+		g_hash_table_unref(interfaces);
 		g_message("waiting for interface to appear");
 		g_usleep(10 * 1000000);
 	}
