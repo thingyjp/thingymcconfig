@@ -7,6 +7,8 @@ HOSTAPD=-Ihostap/src/common/ -Ihostap/src/utils/
 LIBNLGENL=`$(PKGCONFIG) --cflags --libs libnl-genl-3.0`
 LIBNLROUTE=`$(PKGCONFIG) --cflags --libs libnl-route-3.0`
 
+COMMONHEADERS=buildconfig.h
+
 ifdef WPASUPPLICANT_BINARYPATH
 	CFLAGS+= -D WPASUPPLICANT_BINARYPATH=\"$(WPASUPPLICANT_BINARYPATH)\"
 endif
@@ -31,19 +33,19 @@ thingymcconfig: thingymcconfig.c \
 	certs.o
 	$(CC) $(CFLAGS) $(LIBMICROHTTPD) $(GLIBJSON) $(LIBNLGENL) $(LIBNLROUTE) -o $@ $^
 
-http.o: http.c http.h
+http.o: http.c http.h $(COMMONHEADERS)
 	$(CC) $(CFLAGS) $(LIBMICROHTTPD) $(GLIBJSON) -c -o $@ $<
 
-network.o: network.c network.h
+network.o: network.c network.h $(COMMONHEADERS)
 	$(CC) $(CFLAGS) $(GLIBJSON) $(HOSTAPD) $(LIBNLGENL) $(LIBNLROUTE) -c -o $@ $<
 
-config.o: config.c config.h
+config.o: config.c config.h $(COMMONHEADERS)
 	$(CC) $(CFLAGS) $(GLIBJSON) -c -o $@ $<
 
-utils.o: utils.c utils.h
+utils.o: utils.c utils.h $(COMMONHEADERS)
 	$(CC) $(CFLAGS) $(GLIBJSON) -c -o $@ $<
 
-certs.o: certs.c certs.h
+certs.o: certs.c certs.h $(COMMONHEADERS)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 os_unix.o: hostap/src/utils/os_unix.c

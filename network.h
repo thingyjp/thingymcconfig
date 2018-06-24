@@ -23,6 +23,7 @@ struct network_status {
 };
 
 void network_init(const char* interface, gboolean noap);
+int network_waitforinterface(void);
 int network_start(void);
 int network_stop(void);
 GPtrArray* network_scan(void);

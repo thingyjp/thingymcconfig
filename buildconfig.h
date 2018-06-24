@@ -1,6 +1,6 @@
 #define DEVELOPMENT
 
-#define DEBUG
+//#define DEBUG
 #ifdef DEBUG
 #define NLDEBUG
 #endif
