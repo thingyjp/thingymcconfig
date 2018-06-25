@@ -8,7 +8,10 @@ a Linux based IoT device.
 * libmicrohttpd with TLS enabled
 * ISC dhclient and dhcpd
 * wpasupplicant
-* libnl
+
+On Debian or similar you need these packages
+
+```libmicrohttpd-dev libnl-route-3-dev libnl-genl-3-dev libjson-glib-dev```
  
 ### Hardware:
 wifi interface that supports NL80211 and supports a station VIF 
