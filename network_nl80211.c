@@ -60,7 +60,7 @@ static gchar* network_nl80211_generatevifname(const gchar* masterifname,
 	GString* interfacenamestr = g_string_new(NULL);
 
 	g_string_append_len(interfacenamestr, masterifname,
-	IFNAMSIZ - (1 + strlen(suffix) + 1));
+			MIN(strlen(masterifname), IFNAMSIZ - (1 + strlen(suffix) + 1)));
 	g_string_append_c_inline(interfacenamestr, '_');
 	g_string_append(interfacenamestr, suffix);
 
