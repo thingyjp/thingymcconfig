@@ -50,7 +50,7 @@ void network_dhcpserver_start() {
 			G_SPAWN_STDOUT_TO_DEV_NULL | G_SPAWN_STDERR_TO_DEV_NULL, NULL, NULL,
 			&dhcpdpid,
 			NULL)) {
-		g_message("failed to start dhcp server for %s");
+		g_message("failed to start dhcp server for %s", apinterfacename);
 	}
 }
 

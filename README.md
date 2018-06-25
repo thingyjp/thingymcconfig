@@ -19,6 +19,8 @@ and an access point VIF simultaneously. This is apparently less
 common than you might think. 
 
 ### Chipsets/Drivers that should work
+#### Broadcom BCM43143/brcmfmac
+Only tested the usb version so far (RaspberryPi official usb dongle).
 #### Marvell 88w8897/mwifiex
 Only tested the pci-e version so far but station and ap interfaces
 come up and operate.
