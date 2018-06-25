@@ -2,16 +2,7 @@
 
 #include <json-glib/json-glib.h>
 
-#define NETWORK_SSIDSTORAGELEN 33
-#define NETWORK_PASSWORDSTORANGELEN 65
-
-struct network_scanresult {
-	char bssid[18];
-	int frequency;
-	int rssi;
-	char ssid[NETWORK_SSIDSTORAGELEN];
-	unsigned flags;
-};
+#include "network_model.h"
 
 struct network_config {
 	char ssid[NETWORK_SSIDSTORAGELEN];
@@ -22,7 +13,7 @@ struct network_status {
 	char ssid[NETWORK_SSIDSTORAGELEN];
 };
 
-void network_init(const char* interface, gboolean noap);
+gboolean network_init(const char* interface, gboolean noap);
 int network_waitforinterface(void);
 int network_start(void);
 int network_stop(void);

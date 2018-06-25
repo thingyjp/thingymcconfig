@@ -1,5 +1,5 @@
 PKGCONFIG ?= pkg-config
-CFLAGS=-ggdb
+CFLAGS=-ggdb -Werror=implicit-function-declaration
 LIBMICROHTTPD=`$(PKGCONFIG) --cflags --libs libmicrohttpd`
 GLIBJSON=`$(PKGCONFIG) --libs --cflags json-glib-1.0`
 HOSTAPD=-Ihostap/src/common/ -Ihostap/src/utils/
@@ -28,6 +28,8 @@ thingymcconfig: thingymcconfig.c \
 	os_unix.o \
 	wpa_ctrl.o \
 	network.o \
+	network_nl80211.o \
+	network_wpasupplicant.o \
 	config.o \
 	utils.o \
 	certs.o
@@ -36,8 +38,14 @@ thingymcconfig: thingymcconfig.c \
 http.o: http.c http.h $(COMMONHEADERS)
 	$(CC) $(CFLAGS) $(LIBMICROHTTPD) $(GLIBJSON) -c -o $@ $<
 
-network.o: network.c network.h $(COMMONHEADERS)
+network.o: network.c network.h network_priv.h $(COMMONHEADERS)
 	$(CC) $(CFLAGS) $(GLIBJSON) $(HOSTAPD) $(LIBNLGENL) $(LIBNLROUTE) -c -o $@ $<
+
+network_nl80211.o: network_nl80211.c network_nl80211.h network_priv.h $(COMMONHEADERS)
+	$(CC) $(CFLAGS) $(GLIBJSON) $(LIBNLGENL) $(LIBNLROUTE) -c -o $@ $<
+
+network_wpasupplicant.o: network_wpasupplicant.c network_wpasupplicant.h $(COMMONHEADERS)
+	$(CC) $(CFLAGS) $(GLIBJSON) $(HOSTAPD) -c -o $@ $<
 
 config.o: config.c config.h $(COMMONHEADERS)
 	$(CC) $(CFLAGS) $(GLIBJSON) -c -o $@ $<
