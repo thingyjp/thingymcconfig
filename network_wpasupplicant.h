@@ -19,7 +19,7 @@ void network_wpasupplicant_init(void);
 gboolean network_wpasupplicant_start(struct wpa_ctrl** wpa_ctrl,
 		const char* interface, GPid* pid);
 void network_wpasupplicant_scan(struct wpa_ctrl* wpa_ctrl);
-void network_wpasupplicant_addnetwork(struct wpa_ctrl* wpa_ctrl,
+int network_wpasupplicant_addnetwork(struct wpa_ctrl* wpa_ctrl,
 		const gchar* ssid, const gchar* psk, unsigned mode);
 void network_wpasupplicant_selectnetwork(struct wpa_ctrl* wpa_ctrl, int which);
 GPtrArray* network_wpasupplicant_getlastscanresults(void);

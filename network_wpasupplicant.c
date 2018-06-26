@@ -1,6 +1,8 @@
 #include "buildconfig.h"
 #include "network_wpasupplicant.h"
 
+#define ISOK(rsp) (strcmp(rsp, "OK") == 0)
+
 static GPtrArray* scanresults = NULL;
 static char* wpasupplicantsocketdir = "/tmp/thingy_sockets/";
 static gboolean connected = FALSE;
@@ -12,19 +14,39 @@ struct wpaeventhandler_entry {
 };
 
 static gchar* network_wpasupplicant_docommand(struct wpa_ctrl* wpa_ctrl,
-		const char* command, gsize* replylen) {
+		gsize* replylen, gboolean stripnewline, const char* command) {
 	*replylen = 1024;
 	char* reply = g_malloc0(*replylen + 1);
 	if (wpa_ctrl_request(wpa_ctrl, command, strlen(command), reply, replylen,
 	NULL) == 0) {
+		if (stripnewline) {
+			//kill the newline
+			reply[*replylen - 1] = '\0';
+			*replylen -= 1;
+		}
 #ifdef WSDEBUG
 		g_message("command: %s, response: %s", command, reply);
 #endif
+
 		return reply;
 	} else {
 		g_free(reply);
 		return NULL;
 	}
+}
+
+static gchar* network_wpasupplicant_docommandf(struct wpa_ctrl* wpa_ctrl,
+		gsize* replylen, gboolean stripnewline, const char* format, ...) {
+	va_list fmtargs;
+	va_start(fmtargs, format);
+	GString* cmdstr = g_string_new(NULL);
+	g_string_vprintf(cmdstr, format, fmtargs);
+	gchar* cmd = g_string_free(cmdstr, FALSE);
+	va_end(fmtargs);
+	gchar* reply = network_wpasupplicant_docommand(wpa_ctrl, replylen,
+			stripnewline, cmd);
+	g_free(cmd);
+	return reply;
 }
 
 #define MATCHBSSID "((?:[0-9a-f]{2}:{0,1}){6})"
@@ -79,8 +101,8 @@ static void network_wpasupplicant_getscanresults(struct wpa_ctrl* wpa_ctrl) {
 			network_wpasupplicant_freescanresult);
 
 	size_t replylen;
-	char* reply = network_wpasupplicant_docommand(wpa_ctrl, "SCAN_RESULTS",
-			&replylen);
+	char* reply = network_wpasupplicant_docommand(wpa_ctrl, &replylen, FALSE,
+			"SCAN_RESULTS");
 	if (reply != NULL) {
 		//g_message("%s\n sr: %s", SCANRESULTREGEX, reply);
 		GRegex* networkregex = g_regex_new(SCANRESULTREGEX, 0, 0, NULL);
@@ -181,56 +203,59 @@ static gboolean network_wpasupplicant_onevent(GIOChannel *source,
 
 void network_wpasupplicant_scan(struct wpa_ctrl* wpa_ctrl) {
 	size_t replylen;
-	char* reply = network_wpasupplicant_docommand(wpa_ctrl, "SCAN", &replylen);
+	char* reply = network_wpasupplicant_docommand(wpa_ctrl, &replylen, TRUE,
+			"SCAN");
 	if (reply != NULL) {
 		g_free(reply);
 	}
 }
 
-void network_wpasupplicant_addnetwork(struct wpa_ctrl* wpa_ctrl,
+int network_wpasupplicant_addnetwork(struct wpa_ctrl* wpa_ctrl,
 		const gchar* ssid, const gchar* psk, unsigned mode) {
 	g_message("adding network %s with psk %s", ssid, psk);
 	gsize respsz;
-	gchar* resp = network_wpasupplicant_docommand(wpa_ctrl, "ADD_NETWORK",
-			&respsz);
-	g_free(resp);
-
-	{
-		GString* ssidcmdstr = g_string_new(NULL);
-		g_string_printf(ssidcmdstr, "SET_NETWORK %d ssid \"%s\"", 0, ssid);
-		gchar* ssidcmd = g_string_free(ssidcmdstr, FALSE);
-		resp = network_wpasupplicant_docommand(wpa_ctrl, ssidcmd, &respsz);
-		g_free(ssidcmd);
+	gchar* resp = network_wpasupplicant_docommand(wpa_ctrl, &respsz, TRUE,
+			"ADD_NETWORK");
+	guint64 networkid;
+	if (resp != NULL) {
+		if (!g_ascii_string_to_unsigned(resp, 10, 0, G_MAXUINT8, &networkid,
+		NULL)) {
+			g_message("failed to parse network id, command failed?");
+			return -1;
+		}
 		g_free(resp);
 	}
 
-	{
-		GString* pskcmdstr = g_string_new(NULL);
-		g_string_printf(pskcmdstr, "SET_NETWORK %d psk \"%s\"", 0, psk);
-		gchar* pskcmd = g_string_free(pskcmdstr, FALSE);
-		resp = network_wpasupplicant_docommand(wpa_ctrl, pskcmd, &respsz);
-		g_free(pskcmd);
+	resp = network_wpasupplicant_docommandf(wpa_ctrl, &respsz, TRUE,
+			"SET_NETWORK %u ssid \"%s\"", (unsigned) networkid, ssid);
+	if (resp != NULL) {
+		g_assert(ISOK(resp));
 		g_free(resp);
 	}
 
-	{
-		GString* modecmdstr = g_string_new(NULL);
-		g_string_printf(modecmdstr, "SET_NETWORK %d mode %d", 0, mode);
-		gchar* modecmd = g_string_free(modecmdstr, FALSE);
-		resp = network_wpasupplicant_docommand(wpa_ctrl, modecmd, &respsz);
-		g_free(modecmd);
+	resp = network_wpasupplicant_docommandf(wpa_ctrl, &respsz, TRUE,
+			"SET_NETWORK %u psk \"%s\"", (unsigned) networkid, psk);
+	if (resp != NULL) {
+		g_assert(ISOK(resp));
 		g_free(resp);
 	}
+
+	resp = network_wpasupplicant_docommandf(wpa_ctrl, &respsz, TRUE,
+			"SET_NETWORK %u mode %d", (unsigned) networkid, mode);
+	if (resp != NULL) {
+		g_assert(ISOK(resp));
+		g_free(resp);
+	}
+
+	return networkid;
 }
 
 void network_wpasupplicant_selectnetwork(struct wpa_ctrl* wpa_ctrl, int which) {
 	gsize respsz;
-	GString* selectcmdstr = g_string_new(NULL);
-	g_string_printf(selectcmdstr, "SELECT_NETWORK %d", 0);
-	gchar* selectcmd = g_string_free(selectcmdstr, FALSE);
-	gchar* resp = network_wpasupplicant_docommand(wpa_ctrl, selectcmd, &respsz);
-	g_free(selectcmd);
-	g_free(resp);
+	gchar* resp = network_wpasupplicant_docommandf(wpa_ctrl, &respsz, TRUE,
+			"SELECT_NETWORK %d", which);
+	if (resp != NULL)
+		g_free(resp);
 }
 
 void network_wpasupplicant_init() {
