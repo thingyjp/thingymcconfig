@@ -26,7 +26,9 @@ static gboolean network_wpasupplicant_onevent(GIOChannel *source,
 #endif
 
 		if (strcmp(command, WPA_EVENT_SCAN_RESULTS) == 0) {
+#ifdef WSDEBUG
 			g_message("have scan results");
+#endif
 			network_wpasupplicant_getscanresults(wpa_ctrl);
 		} else if (strcmp(command, AP_STA_CONNECTED) == 0) {
 
@@ -156,9 +158,10 @@ void network_wpasupplicant_getscanresults(struct wpa_ctrl* wpa_ctrl) {
 			g_free(flags);
 			g_free(ssid);
 
+#ifdef WSDEBUG
 			g_message("bssid %s, frequency %d, rssi %d, flags %u, ssid %s",
 					n->bssid, n->frequency, n->rssi, n->flags, n->ssid);
-
+#endif
 			g_match_info_next(matchinfo, NULL);
 		}
 		g_match_info_free(matchinfo);
