@@ -240,11 +240,12 @@ GPtrArray* network_scan() {
 }
 
 void network_addnetwork(struct network_config* ntwkcfg) {
-	network_wpasupplicant_addnetwork(wpa_ctrl_sta, ntwkcfg->ssid, ntwkcfg->psk,
-	WPASUPPLICANT_NETWORKMODE_STA);
+	int networkid = network_wpasupplicant_addnetwork(wpa_ctrl_sta,
+			ntwkcfg->ssid, ntwkcfg->psk,
+			WPASUPPLICANT_NETWORKMODE_STA);
 	gsize respsz;
 	gchar* resp;
-	network_wpasupplicant_selectnetwork(wpa_ctrl_sta, 0);
+	network_wpasupplicant_selectnetwork(wpa_ctrl_sta, networkid);
 }
 
 struct network_config* network_parseconfig(JsonNode* root) {
