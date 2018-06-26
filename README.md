@@ -72,7 +72,7 @@ has completed or failed.
 ```
 #### curl
 ```
-curl -H -v "http://127.0.0.1:1338/scan"
+curl -v "http://127.0.0.1:1338/scan"
 ```
 
 ### Configuring
@@ -97,5 +97,5 @@ curl -H "Content-Type: application/json" -d '{"ssid":"mynetwork", "psk":"mypassw
 ```
 #### curl
 ```
-curl -H -v "http://127.0.0.1:1338/status"
+curl -v "http://127.0.0.1:1338/status"
 ```
