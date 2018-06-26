@@ -57,10 +57,31 @@ has completed or failed.
 
 ### Scanning
 ```curl -H -v "http://127.0.0.1:1338/scan"```
-```{"scanresults":[{"bssid":"??:??:??:??:??:??","frequency":2412,"rssi":-36,"ssid":"funkytown"}]}```
+```json
+{
+  "scanresults": [
+    {
+      "bssid": "??:??:??:??:??:??",
+      "frequency": 2412,
+      "rssi": -36,
+      "ssid": "funkytown"
+    }
+  ]
+}
+```
 
 ### Configuring
 ```curl -H "Content-Type: application/json" -d '{"ssid":"mynetwork", "psk":"mypassword"}' -v "http://127.0.0.1:1338/config"```
 
 ### Status
 ```curl -H -v "http://127.0.0.1:1338/status"```
+
+```json
+{
+  "network": {
+    "supplicant": {
+      "connected": true
+    }
+  }
+}
+```
