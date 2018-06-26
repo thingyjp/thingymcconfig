@@ -46,6 +46,14 @@ might work.
 The intention is to make this as simple as possible and for now
 only one network can be configured at once.
 
+Requests and responses are done over HTTPS(not implemented yet) and serialised as JSON.
+These aren't really lightweight but good HTTP and JSON libraries 
+exist for almost every platform.
+
+The thing will present it's unique certificate so that you can
+validate it's identity while the HTTPS connection is being made.
+Your HTTP client should only trust the CA used to sign said certificate. 
+
 Any client app should use the "scan" endpoint to get a list of
 access points the thing itself can see instead of using any local
 data.
