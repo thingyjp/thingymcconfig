@@ -9,6 +9,8 @@ a Linux based IoT device.
 * ISC dhclient and dhcpd
 * wpasupplicant
 
+For buildroot an external package can be found [here](https://github.com/thingyjp/thingymcconfig-buildroot)
+
 On Debian or similar you need these packages
 
 ```libmicrohttpd-dev libnl-route-3-dev libnl-genl-3-dev libjson-glib-dev```
