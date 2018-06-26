@@ -43,11 +43,24 @@ but usb support is experimental and doesn't seem to work. pci-e and SDIO
 might work.
 
 ## Protocol
- 
+The intention is to make this as simple as possible and for now
+only one network can be configured at once.
+
+Any client app should use the "scan" endpoint to get a list of
+access points the thing itself can see instead of using any local
+data.
+
+Once the user has choosen one of the access points the client app
+should send over the network details via the "config" endpoint and
+then periodically poll the status end point to check if the process
+has completed or failed.
+
 ### Scanning
-```curl -H "Content-Type: application/json" -d '{"ssid":"mynetwork", "psk":"mypassword"}' -v "http://127.0.0.1:1338/config"```
+```curl -H -v "http://127.0.0.1:1338/scan"```
+```{"scanresults":[{"bssid":"??:??:??:??:??:??","frequency":2412,"rssi":-36,"ssid":"funkytown"}]}```
 
 ### Configuring
-```curl -H -v "http://127.0.0.1:1338/scan"```
+```curl -H "Content-Type: application/json" -d '{"ssid":"mynetwork", "psk":"mypassword"}' -v "http://127.0.0.1:1338/config"```
 
 ### Status
+```curl -H -v "http://127.0.0.1:1338/status"```
