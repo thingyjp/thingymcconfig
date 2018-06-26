@@ -11,7 +11,33 @@ struct postconninfo {
 
 #define PORT 1338
 
+#define ENDPOINT_SCAN "/scan"
+#define ENDPOINT_CONFIG "/config"
+#define ENDPOINT_STATUS "/status"
+#define ENDPOINT_DEBUG "/debug"
+
 static struct MHD_Daemon* mhd = NULL;
+
+static int http_handleconnection_debug(struct MHD_Connection* connection) {
+	JsonBuilder* jsonbuilder = json_builder_new();
+	json_builder_begin_object(jsonbuilder);
+	json_builder_end_object(jsonbuilder);
+
+	gsize contentln;
+	char* content = utils_jsonbuildertostring(jsonbuilder, &contentln);
+
+	int ret = 0;
+	struct MHD_Response* response = MHD_create_response_from_buffer(contentln,
+			(void*) content, MHD_RESPMEM_MUST_COPY);
+	if (response) {
+		ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
+		MHD_destroy_response(response);
+	} else
+		g_message("failed to create response");
+
+	g_free(content);
+	return ret;
+}
 
 static int http_handleconnection_status(struct MHD_Connection* connection) {
 	JsonBuilder* jsonbuilder = json_builder_new();
@@ -166,11 +192,13 @@ static int http_handleconnection(void* cls, struct MHD_Connection* connection,
 	int ret = MHD_NO;
 	gboolean isget = (strcmp(method, MHD_HTTP_METHOD_GET) == 0);
 	gboolean ispost = (strcmp(method, MHD_HTTP_METHOD_POST) == 0);
-	if (isget && (strcmp(url, "/status") == 0))
+	if (isget && (strcmp(url, ENDPOINT_STATUS) == 0))
 		ret = http_handleconnection_status(connection);
-	else if (isget && (strcmp(url, "/scan") == 0))
+	else if (isget && (strcmp(url, ENDPOINT_SCAN) == 0))
 		ret = http_handleconnection_scan(connection);
-	else if (ispost && (strcmp(url, "/config") == 0)) {
+	else if (isget && (strcmp(url, ENDPOINT_DEBUG) == 0)) {
+		ret = http_handleconnection_debug(connection);
+	} else if (ispost && (strcmp(url, ENDPOINT_CONFIG) == 0)) {
 		if (*con_cls == NULL
 				&& strcmp(
 						MHD_lookup_connection_value(connection, MHD_HEADER_KIND,
