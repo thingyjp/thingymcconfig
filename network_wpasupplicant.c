@@ -3,49 +3,13 @@
 
 static GPtrArray* scanresults = NULL;
 static char* wpasupplicantsocketdir = "/tmp/thingy_sockets/";
+static gboolean connected = FALSE;
 
-static gboolean network_wpasupplicant_onevent(GIOChannel *source,
-		GIOCondition condition, gpointer data) {
-	struct wpa_ctrl* wpa_ctrl = data;
-	size_t replylen = 1024;
-	char* reply = g_malloc0(replylen + 1);
-	wpa_ctrl_recv(wpa_ctrl, reply, &replylen);
-
-#ifdef WSDEBUG
-	g_message("event for wpa supplicant: %s", reply);
-#endif
-
-	GRegex* regex = g_regex_new("^<([0-4])>([A-Z,-]* )", 0, 0, NULL);
-	GMatchInfo* matchinfo;
-	if (g_regex_match(regex, reply, 0, &matchinfo)) {
-		char* level = g_match_info_fetch(matchinfo, 1);
-		char* command = g_match_info_fetch(matchinfo, 2);
-
-#ifdef WSDEBUG
-		g_message("level: %s, command %s", level, command);
-#endif
-
-		if (strcmp(command, WPA_EVENT_SCAN_RESULTS) == 0) {
-#ifdef WSDEBUG
-			g_message("have scan results");
-#endif
-			network_wpasupplicant_getscanresults(wpa_ctrl);
-		} else if (strcmp(command, AP_STA_CONNECTED) == 0) {
-
-		} else if (strcmp(command, AP_STA_DISCONNECTED) == 0) {
-
-		}
-
-		g_free(level);
-		g_free(command);
-
-	}
-	g_match_info_free(matchinfo);
-	g_regex_unref(regex);
-
-	g_free(reply);
-	return TRUE;
-}
+typedef void (*wpaeventhandler)(struct wpa_ctrl* wpa_ctrl);
+struct wpaeventhandler_entry {
+	const gchar* command;
+	const wpaeventhandler handler;
+};
 
 static gchar* network_wpasupplicant_docommand(struct wpa_ctrl* wpa_ctrl,
 		const char* command, gsize* replylen) {
@@ -103,19 +67,11 @@ static unsigned network_wpasupplicant_getscanresults_flags(const char* flags) {
 	return f;
 }
 
-void network_wpasupplicant_scan(struct wpa_ctrl* wpa_ctrl) {
-	size_t replylen;
-	char* reply = network_wpasupplicant_docommand(wpa_ctrl, "SCAN", &replylen);
-	if (reply != NULL) {
-		g_free(reply);
-	}
-}
-
 static void network_wpasupplicant_freescanresult(gpointer data) {
 	g_free(data);
 }
 
-void network_wpasupplicant_getscanresults(struct wpa_ctrl* wpa_ctrl) {
+static void network_wpasupplicant_getscanresults(struct wpa_ctrl* wpa_ctrl) {
 	if (scanresults != NULL)
 		g_ptr_array_unref(scanresults);
 
@@ -166,6 +122,68 @@ void network_wpasupplicant_getscanresults(struct wpa_ctrl* wpa_ctrl) {
 		}
 		g_match_info_free(matchinfo);
 		g_regex_unref(networkregex);
+	}
+}
+
+static void network_wpasupplicant_eventhandler_connect(
+		struct wpa_ctrl* wpa_ctrl) {
+	connected = TRUE;
+}
+
+static void network_wpasupplicant_eventhandler_disconnect(
+		struct wpa_ctrl* wpa_ctrl) {
+	connected = FALSE;
+}
+
+static const struct wpaeventhandler_entry eventhandlers[] = { {
+WPA_EVENT_SCAN_RESULTS, network_wpasupplicant_getscanresults }, {
+WPA_EVENT_CONNECTED, network_wpasupplicant_eventhandler_connect }, {
+WPA_EVENT_DISCONNECTED, network_wpasupplicant_eventhandler_disconnect } };
+
+static gboolean network_wpasupplicant_onevent(GIOChannel *source,
+		GIOCondition condition, gpointer data) {
+	struct wpa_ctrl* wpa_ctrl = data;
+	size_t replylen = 1024;
+	char* reply = g_malloc0(replylen + 1);
+	wpa_ctrl_recv(wpa_ctrl, reply, &replylen);
+
+#ifdef WSDEBUG
+	g_message("event for wpa supplicant: %s", reply);
+#endif
+
+	GRegex* regex = g_regex_new("^<([0-4])>([A-Z,-]* )", 0, 0, NULL);
+	GMatchInfo* matchinfo;
+	if (g_regex_match(regex, reply, 0, &matchinfo)) {
+		char* level = g_match_info_fetch(matchinfo, 1);
+		char* command = g_match_info_fetch(matchinfo, 2);
+
+#ifdef WSDEBUG
+		g_message("level: %s, command %s", level, command);
+#endif
+
+		for (int i = 0; i < G_N_ELEMENTS(eventhandlers); i++) {
+			if (strcmp(command, eventhandlers[i].command) == 0) {
+				eventhandlers[i].handler(wpa_ctrl);
+				break;
+			}
+		}
+
+		g_free(level);
+		g_free(command);
+
+	}
+	g_match_info_free(matchinfo);
+	g_regex_unref(regex);
+
+	g_free(reply);
+	return TRUE;
+}
+
+void network_wpasupplicant_scan(struct wpa_ctrl* wpa_ctrl) {
+	size_t replylen;
+	char* reply = network_wpasupplicant_docommand(wpa_ctrl, "SCAN", &replylen);
+	if (reply != NULL) {
+		g_free(reply);
 	}
 }
 
@@ -225,8 +243,8 @@ gboolean network_wpasupplicant_start(struct wpa_ctrl** wpa_ctrl,
 	gchar* args[] = { WPASUPPLICANT_BINARYPATH, "-Dnl80211", "-i", interface,
 			"-C", wpasupplicantsocketdir, "-qq", NULL };
 	if (!g_spawn_async(NULL, args, NULL,
-			G_SPAWN_STDOUT_TO_DEV_NULL | G_SPAWN_STDERR_TO_DEV_NULL, NULL, NULL,
-			pid, NULL)) {
+			G_SPAWN_STDOUT_TO_DEV_NULL | G_SPAWN_STDERR_TO_DEV_NULL, NULL,
+			NULL, pid, NULL)) {
 		g_message("failed to start wpa_supplicant");
 		goto err_spawn;
 	}
@@ -264,4 +282,12 @@ GPtrArray* network_wpasupplicant_getlastscanresults() {
 
 void network_wpasupplicant_stop(struct wpa_ctrl* wpa_ctrl, GPid* pid) {
 
+}
+
+void network_wpasupplicant_dumpstatus(JsonBuilder* builder) {
+	json_builder_set_member_name(builder, "supplicant");
+	json_builder_begin_object(builder);
+	json_builder_set_member_name(builder, "connected");
+	json_builder_add_boolean_value(builder, connected);
+	json_builder_end_object(builder);
 }

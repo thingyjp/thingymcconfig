@@ -1,6 +1,6 @@
 #pragma once
 
-#include <glib.h>
+#include <json-glib/json-glib.h>
 #include <wpa_ctrl.h>
 #include "network_model.h"
 
@@ -19,9 +19,10 @@ void network_wpasupplicant_init(void);
 gboolean network_wpasupplicant_start(struct wpa_ctrl** wpa_ctrl,
 		const char* interface, GPid* pid);
 void network_wpasupplicant_scan(struct wpa_ctrl* wpa_ctrl);
-void network_wpasupplicant_getscanresults(struct wpa_ctrl* wpa_ctrl);
 void network_wpasupplicant_addnetwork(struct wpa_ctrl* wpa_ctrl,
 		const gchar* ssid, const gchar* psk, unsigned mode);
 void network_wpasupplicant_selectnetwork(struct wpa_ctrl* wpa_ctrl, int which);
 GPtrArray* network_wpasupplicant_getlastscanresults(void);
 void network_wpasupplicant_stop(struct wpa_ctrl* wpa_ctrl, GPid* pid);
+
+void network_wpasupplicant_dumpstatus(JsonBuilder* builder);

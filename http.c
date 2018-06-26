@@ -42,6 +42,7 @@ static int http_handleconnection_debug(struct MHD_Connection* connection) {
 static int http_handleconnection_status(struct MHD_Connection* connection) {
 	JsonBuilder* jsonbuilder = json_builder_new();
 	json_builder_begin_object(jsonbuilder);
+	network_dumpstatus(jsonbuilder);
 	json_builder_end_object(jsonbuilder);
 
 	gsize contentln;

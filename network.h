@@ -23,3 +23,5 @@ struct network_config* network_parseconfig(JsonNode* root);
 
 int network_startap(void);
 int network_stopap(void);
+
+void network_dumpstatus(JsonBuilder* builder);

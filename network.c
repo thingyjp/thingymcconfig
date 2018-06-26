@@ -266,3 +266,10 @@ struct network_config* network_parseconfig(JsonNode* root) {
 
 	return NULL;
 }
+
+void network_dumpstatus(JsonBuilder* builder) {
+	json_builder_set_member_name(builder, "network");
+	json_builder_begin_object(builder);
+	network_wpasupplicant_dumpstatus(builder);
+	json_builder_end_object(builder);
+}
