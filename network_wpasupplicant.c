@@ -7,22 +7,31 @@ static char* wpasupplicantsocketdir = "/tmp/thingy_sockets/";
 static gboolean network_wpasupplicant_onevent(GIOChannel *source,
 		GIOCondition condition, gpointer data) {
 	struct wpa_ctrl* wpa_ctrl = data;
-	g_message("have event from wpa_supplicant");
 	size_t replylen = 1024;
 	char* reply = g_malloc0(replylen + 1);
 	wpa_ctrl_recv(wpa_ctrl, reply, &replylen);
-	g_message("event: %s", reply);
+
+#ifdef WSDEBUG
+	g_message("event for wpa supplicant: %s", reply);
+#endif
 
 	GRegex* regex = g_regex_new("^<([0-4])>([A-Z,-]* )", 0, 0, NULL);
 	GMatchInfo* matchinfo;
 	if (g_regex_match(regex, reply, 0, &matchinfo)) {
 		char* level = g_match_info_fetch(matchinfo, 1);
 		char* command = g_match_info_fetch(matchinfo, 2);
+
+#ifdef WSDEBUG
 		g_message("level: %s, command %s", level, command);
+#endif
 
 		if (strcmp(command, WPA_EVENT_SCAN_RESULTS) == 0) {
 			g_message("have scan results");
 			network_wpasupplicant_getscanresults(wpa_ctrl);
+		} else if (strcmp(command, AP_STA_CONNECTED) == 0) {
+
+		} else if (strcmp(command, AP_STA_DISCONNECTED) == 0) {
+
 		}
 
 		g_free(level);
@@ -42,7 +51,9 @@ static gchar* network_wpasupplicant_docommand(struct wpa_ctrl* wpa_ctrl,
 	char* reply = g_malloc0(*replylen + 1);
 	if (wpa_ctrl_request(wpa_ctrl, command, strlen(command), reply, replylen,
 	NULL) == 0) {
+#ifdef WSDEBUG
 		g_message("command: %s, response: %s", command, reply);
+#endif
 		return reply;
 	} else {
 		g_free(reply);

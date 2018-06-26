@@ -12,6 +12,7 @@
 #include "network_priv.h"
 #include "network_nl80211.h"
 #include "network_wpasupplicant.h"
+#include "network_dhcp.h"
 
 #define NUMBEROFINTERFACESWHENCONFIGURED 2
 
@@ -26,37 +27,7 @@ struct wpa_ctrl* wpa_ctrl_ap = NULL;
 
 static struct nl_sock* routesock;
 
-static GPid dhcpcpid, dhcpdpid, stasupplicantpid, apsupplicantpid;
-
-void network_dhcpclient_start() {
-	g_message("starting dhcp client for %s", interfacename);
-	gchar* args[] = { DHCPC_BINARYPATH, "-d", interfacename, NULL };
-	if (!g_spawn_async(NULL, args, NULL,
-			G_SPAWN_STDOUT_TO_DEV_NULL | G_SPAWN_STDERR_TO_DEV_NULL, NULL, NULL,
-			&dhcpcpid,
-			NULL)) {
-		g_message("failed to start dhcp client for %s", interfacename);
-	}
-}
-
-void network_dhcpclient_stop() {
-	g_spawn_close_pid(dhcpcpid);
-}
-
-void network_dhcpserver_start() {
-	g_message("starting dhcp server for %s", apinterfacename);
-	gchar* args[] = { DHCPD_BINARYPATH, "-f", apinterfacename, NULL };
-	if (!g_spawn_async(NULL, args, NULL,
-			G_SPAWN_STDOUT_TO_DEV_NULL | G_SPAWN_STDERR_TO_DEV_NULL, NULL, NULL,
-			&dhcpdpid,
-			NULL)) {
-		g_message("failed to start dhcp server for %s", apinterfacename);
-	}
-}
-
-void network_dhcpserver_stop() {
-	g_spawn_close_pid(dhcpdpid);
-}
+static GPid stasupplicantpid, apsupplicantpid;
 
 gboolean network_init(const char* interface, gboolean noap) {
 	interfacename = interface;
@@ -214,7 +185,7 @@ int network_start() {
 		return -1;
 	network_wpasupplicant_start(&wpa_ctrl_sta, interfacename,
 			&stasupplicantpid);
-	network_dhcpclient_start();
+	network_dhcpclient_start(interfacename);
 	return 0;
 }
 
@@ -250,7 +221,7 @@ int network_startap() {
 			"reallysecurepassword",
 			WPASUPPLICANT_NETWORKMODE_AP);
 	network_wpasupplicant_selectnetwork(wpa_ctrl_ap, 0);
-	network_dhcpserver_start();
+	network_dhcpserver_start(apinterfacename);
 
 	err_startsupp:			//
 	return 0;
