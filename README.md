@@ -56,7 +56,8 @@ then periodically poll the status end point to check if the process
 has completed or failed.
 
 ### Scanning
-```curl -H -v "http://127.0.0.1:1338/scan"```
+#### Request
+#### Response
 ```json
 {
   "scanresults": [
@@ -69,13 +70,22 @@ has completed or failed.
   ]
 }
 ```
+#### curl
+```
+curl -H -v "http://127.0.0.1:1338/scan"
+```
 
 ### Configuring
-```curl -H "Content-Type: application/json" -d '{"ssid":"mynetwork", "psk":"mypassword"}' -v "http://127.0.0.1:1338/config"```
+#### Request
+#### Response
+#### curl
+```
+curl -H "Content-Type: application/json" -d '{"ssid":"mynetwork", "psk":"mypassword"}' -v "http://127.0.0.1:1338/config"
+```
 
-### Status
-```curl -H -v "http://127.0.0.1:1338/status"```
-
+### Status Polling
+#### Request
+#### Response
 ```json
 {
   "network": {
@@ -84,4 +94,8 @@ has completed or failed.
     }
   }
 }
+```
+#### curl
+```
+curl -H -v "http://127.0.0.1:1338/status"
 ```
