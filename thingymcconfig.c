@@ -10,13 +10,20 @@ int main(int argc, char** argv) {
 	gchar* interface = NULL;
 	gboolean waitforinterface = FALSE;
 	gboolean noap = FALSE;
+	gchar* cert = NULL;
+	gchar* key = NULL;
 	int ret = 0;
 
 	GError* error = NULL;
-	GOptionEntry entries[] = { { "interface", 'i', 0, G_OPTION_ARG_STRING,
-			&interface, "interface", NULL }, { "waitforinterface", 'w', 0,
-			G_OPTION_ARG_NONE, &waitforinterface,
-			"wait for interface to appear", NULL },
+	GOptionEntry entries[] = {
+	// networking stuff
+			{ "interface", 'i', 0, G_OPTION_ARG_STRING, &interface, "interface",
+			NULL }, { "waitforinterface", 'w', 0, G_OPTION_ARG_NONE,
+					&waitforinterface, "wait for interface to appear", NULL },
+			// crypto options
+			{ "cert", 'c', 0, G_OPTION_ARG_STRING, &cert, "device certificate",
+			NULL }, { "key", 'k', 0, G_OPTION_ARG_STRING, &key, "private key",
+			NULL },
 #ifdef DEVELOPMENT
 			{ "noap", 'n', 0, G_OPTION_ARG_NONE, &noap,
 					"don't create an ap, only useful for development", NULL },
@@ -35,6 +42,14 @@ int main(int argc, char** argv) {
 		ret = 1;
 		goto err_args;
 	}
+
+#if 0
+	if (cert == NULL || key == NULL) {
+		g_message("device certificate or private key not specified");
+		ret = 1;
+		goto err_args;
+	}
+#endif
 
 	GMainLoop* mainloop = g_main_loop_new(NULL, FALSE);
 
