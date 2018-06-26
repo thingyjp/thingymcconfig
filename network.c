@@ -235,8 +235,8 @@ int network_stopap() {
 
 GPtrArray* network_scan() {
 	network_wpasupplicant_scan(wpa_ctrl_sta);
-	//return scanresults;
-	return NULL;
+	GPtrArray* scanresults = network_wpasupplicant_getlastscanresults();
+	return scanresults;
 }
 
 void network_addnetwork(struct network_config* ntwkcfg) {

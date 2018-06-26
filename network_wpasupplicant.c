@@ -1,7 +1,7 @@
 #include "buildconfig.h"
 #include "network_wpasupplicant.h"
 
-static GPtrArray* scanresults;
+static GPtrArray* scanresults = NULL;
 static char* wpasupplicantsocketdir = "/tmp/thingy_sockets/";
 
 static gboolean network_wpasupplicant_onevent(GIOChannel *source,
@@ -109,7 +109,17 @@ void network_wpasupplicant_scan(struct wpa_ctrl* wpa_ctrl) {
 	}
 }
 
+static void network_wpasupplicant_freescanresult(gpointer data) {
+	g_free(data);
+}
+
 void network_wpasupplicant_getscanresults(struct wpa_ctrl* wpa_ctrl) {
+	if (scanresults != NULL)
+		g_ptr_array_unref(scanresults);
+
+	scanresults = g_ptr_array_new_with_free_func(
+			network_wpasupplicant_freescanresult);
+
 	size_t replylen;
 	char* reply = network_wpasupplicant_docommand(wpa_ctrl, "SCAN_RESULTS",
 			&replylen);
@@ -203,7 +213,6 @@ void network_wpasupplicant_selectnetwork(struct wpa_ctrl* wpa_ctrl, int which) {
 }
 
 void network_wpasupplicant_init() {
-	scanresults = g_ptr_array_new();
 }
 
 gboolean network_wpasupplicant_start(struct wpa_ctrl** wpa_ctrl,
@@ -244,6 +253,10 @@ gboolean network_wpasupplicant_start(struct wpa_ctrl** wpa_ctrl,
 	g_free(socketpath);
 	err_spawn:			//
 	return ret;
+}
+
+GPtrArray* network_wpasupplicant_getlastscanresults() {
+	return scanresults;
 }
 
 void network_wpasupplicant_stop(struct wpa_ctrl* wpa_ctrl, GPid* pid) {

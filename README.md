@@ -43,8 +43,9 @@ might work.
 ## Protocol
  
 ### Scanning
+```curl -H "Content-Type: application/json" -d '{"ssid":"mynetwork", "psk":"mypassword"}' -v "http://127.0.0.1:1338/config"```
 
 ### Configuring
-```curl -H "Content-Type: application/json" '{"ssid":"mynetwork", "psk":"mypassword"}' -v "http://127.0.0.1:1338/config"```
+```curl -H -v "http://127.0.0.1:1338/scan"```
 
 ### Status

@@ -23,4 +23,5 @@ void network_wpasupplicant_getscanresults(struct wpa_ctrl* wpa_ctrl);
 void network_wpasupplicant_addnetwork(struct wpa_ctrl* wpa_ctrl,
 		const gchar* ssid, const gchar* psk, unsigned mode);
 void network_wpasupplicant_selectnetwork(struct wpa_ctrl* wpa_ctrl, int which);
+GPtrArray* network_wpasupplicant_getlastscanresults(void);
 void network_wpasupplicant_stop(struct wpa_ctrl* wpa_ctrl, GPid* pid);
