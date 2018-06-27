@@ -40,7 +40,7 @@ thingymcconfig: thingymcconfig.c \
 http.o: http.c http.h $(COMMONHEADERS)
 	$(CC) $(CFLAGS) $(LIBMICROHTTPD) $(GLIBJSON) -c -o $@ $<
 
-network.o: network.c network.h network_priv.h $(COMMONHEADERS)
+network.o: network.c network.h network_priv.h network_wpasupplicant.h $(COMMONHEADERS)
 	$(CC) $(CFLAGS) $(GLIBJSON) $(HOSTAPD) $(LIBNLGENL) $(LIBNLROUTE) -c -o $@ $<
 
 network_nl80211.o: network_nl80211.c network_nl80211.h network_priv.h $(COMMONHEADERS)

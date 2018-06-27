@@ -294,7 +294,7 @@ void network_wpasupplicant_init() {
 }
 
 gboolean network_wpasupplicant_start(struct wpa_ctrl** wpa_ctrl,
-		const char* interface, GPid* pid) {
+		struct wpa_ctrl** wpa_event, const char* interface, GPid* pid) {
 	gboolean ret = FALSE;
 	g_message("starting wpa_supplicant for %s", interface);
 	gchar* args[] = { WPASUPPLICANT_BINARYPATH, "-Dnl80211", "-i", interface,
@@ -313,20 +313,32 @@ gboolean network_wpasupplicant_start(struct wpa_ctrl** wpa_ctrl,
 	gchar* socketpath = g_string_free(socketpathstr, FALSE);
 
 	*wpa_ctrl = wpa_ctrl_open(socketpath);
-	if (*wpa_ctrl) {
-		wpa_ctrl_attach(*wpa_ctrl);
-		int fd = wpa_ctrl_get_fd(*wpa_ctrl);
-		GIOChannel* channel = g_io_channel_unix_new(fd);
-		g_io_add_watch(channel, G_IO_IN, network_wpasupplicant_onevent,
-				*wpa_ctrl);
-		g_message("wpa_supplicant running, control interface connected");
-	} else {
-		g_message("failed to open wpa_supplicant control interface");
+	if (*wpa_ctrl)
+		g_message("wpa_supplicant control socket connected");
+	else {
+		g_message("failed to open wpa_supplicant control socket");
 		goto err_openctrlsck;
 	}
 
-	ret = TRUE;
+	*wpa_event = wpa_ctrl_open(socketpath);
+	if (*wpa_event) {
+		g_message("wpa_supplicant event socket connected");
+		wpa_ctrl_attach(*wpa_event);
+		int fd = wpa_ctrl_get_fd(*wpa_event);
+		GIOChannel* channel = g_io_channel_unix_new(fd);
+		g_io_add_watch(channel, G_IO_IN, network_wpasupplicant_onevent,
+				*wpa_event);
+	} else {
+		g_message("failed to open wpa_supplicant event socket");
+		goto err_openevntsck;
+	}
 
+	ret = TRUE;
+	goto out;
+
+	err_openevntsck:	//
+	wpa_ctrl_close(*wpa_ctrl);
+	out: //
 	err_openctrlsck:	//
 	g_free(socketpath);
 	err_spawn:			//

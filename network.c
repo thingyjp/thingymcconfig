@@ -24,7 +24,9 @@ static int apinterfaceindex;
 static gboolean noapinterface;
 
 struct wpa_ctrl* wpa_ctrl_sta = NULL;
+struct wpa_ctrl* wpa_event_sta = NULL;
 struct wpa_ctrl* wpa_ctrl_ap = NULL;
+struct wpa_ctrl* wpa_event_ap = NULL;
 
 static struct nl_sock* routesock;
 
@@ -192,7 +194,7 @@ static gboolean network_setupinterfaces() {
 int network_start() {
 	if (!network_setupinterfaces())
 		return -1;
-	network_wpasupplicant_start(&wpa_ctrl_sta, interfacename,
+	network_wpasupplicant_start(&wpa_ctrl_sta, &wpa_event_sta, interfacename,
 			&stasupplicantpid);
 	network_dhcpclient_start(interfacename);
 	return 0;
@@ -222,8 +224,8 @@ int network_startap() {
 		return 0;
 
 	network_netlink_setipv4addr(apinterfaceindex, "10.0.0.1/30");
-	if (!network_wpasupplicant_start(&wpa_ctrl_ap, apinterfacename,
-			&apsupplicantpid))
+	if (!network_wpasupplicant_start(&wpa_ctrl_ap, &wpa_event_ap,
+			apinterfacename, &apsupplicantpid))
 		goto err_startsupp;
 
 	network_wpasupplicant_addnetwork(wpa_ctrl_ap, "mythingy",
