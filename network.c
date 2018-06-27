@@ -51,7 +51,6 @@ gboolean network_init(const char* interface, gboolean noap) {
 	nl_connect(routesock, NETLINK_ROUTE);
 
 	network_wpasupplicant_init();
-
 	return TRUE;
 
 	err_nl80211init:			//
@@ -197,6 +196,16 @@ int network_start() {
 	network_wpasupplicant_start(&wpa_ctrl_sta, &wpa_event_sta, interfacename,
 			&stasupplicantpid);
 	network_dhcpclient_start(interfacename);
+
+	const struct config* cfg = config_getconfig();
+	if (cfg->ntwkcfg != NULL) {
+		int networkid = network_wpasupplicant_addnetwork(wpa_ctrl_sta,
+				cfg->ntwkcfg->ssid, cfg->ntwkcfg->psk,
+				WPASUPPLICANT_NETWORKMODE_STA);
+		network_wpasupplicant_selectnetwork(wpa_ctrl_sta, networkid);
+		configurationstate = NTWKST_CONFIGURED;
+	}
+
 	return 0;
 }
 
@@ -266,8 +275,6 @@ gboolean network_configure(struct network_config* ntwkcfg) {
 	int networkid = network_wpasupplicant_addnetwork(wpa_ctrl_sta,
 			ntwkcfg->ssid, ntwkcfg->psk,
 			WPASUPPLICANT_NETWORKMODE_STA);
-	gsize respsz;
-	gchar* resp;
 	network_wpasupplicant_selectnetwork(wpa_ctrl_sta, networkid);
 
 	timeoutsource = g_timeout_add(60 * 1000, network_configure_timeout, NULL);

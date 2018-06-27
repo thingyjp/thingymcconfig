@@ -7,5 +7,5 @@ struct config {
 };
 
 void config_init(void);
-
 void config_onnetworkconfigured(struct network_config* config);
+const struct config* config_getconfig(void);
