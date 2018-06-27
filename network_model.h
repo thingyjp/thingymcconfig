@@ -1,5 +1,7 @@
 #pragma once
 
+#include <json-glib/json-glib.h>
+
 #define NETWORK_SSIDSTORAGELEN 33
 #define NETWORK_PASSWORDSTORANGELEN 65
 
@@ -20,3 +22,12 @@ struct network_scanresult {
 	char ssid[NETWORK_SSIDSTORAGELEN];
 	unsigned flags;
 };
+
+struct network_config {
+	char ssid[NETWORK_SSIDSTORAGELEN];
+	char psk[NETWORK_PASSWORDSTORANGELEN];
+};
+
+struct network_config* network_model_config_deserialise(JsonNode* root);
+void network_model_config_serialise(struct network_config* config,
+		JsonBuilder* jsonbuilder);

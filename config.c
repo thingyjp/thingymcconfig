@@ -9,7 +9,11 @@ static void config_save() {
 	JsonBuilder* jsonbuilder = json_builder_new();
 	json_builder_begin_object(jsonbuilder);
 
-	json_builder_end_array(jsonbuilder);
+	if (cfg.ntwkcfg != NULL) {
+		json_builder_set_member_name(jsonbuilder, "network_config");
+		network_model_config_serialise(cfg.ntwkcfg, jsonbuilder);
+		json_builder_end_object(jsonbuilder);
+	}
 
 	gsize jsonsz;
 	gchar* json = utils_jsonbuildertostring(jsonbuilder, &jsonsz);
@@ -27,4 +31,9 @@ void config_init() {
 
 	if (!cfgvalid)
 		g_message("config doesn't exist or is invalid");
+}
+
+void config_onnetworkconfigured(struct network_config* config) {
+	cfg.ntwkcfg = config;
+	config_save();
 }

@@ -31,6 +31,7 @@ thingymcconfig: thingymcconfig.c \
 	network_nl80211.o \
 	network_wpasupplicant.o \
 	network_dhcp.o \
+	network_model.o \
 	config.o \
 	utils.o \
 	certs.o
@@ -49,6 +50,9 @@ network_wpasupplicant.o: network_wpasupplicant.c network_wpasupplicant.h network
 	$(CC) $(CFLAGS) $(GLIBJSON) $(HOSTAPD) -c -o $@ $<
 
 network_dhcp.o: network_dhcp.c network_dhcp.h $(COMMONHEADERS)
+	$(CC) $(CFLAGS) $(GLIBJSON) -c -o $@ $<
+
+network_model.o: network_model.c network_model.h $(COMMONHEADERS)
 	$(CC) $(CFLAGS) $(GLIBJSON) -c -o $@ $<
 
 config.o: config.c config.h $(COMMONHEADERS)

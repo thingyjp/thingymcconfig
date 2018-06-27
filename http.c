@@ -137,7 +137,7 @@ static int http_handleconnection_configure(struct MHD_Connection* connection,
 	}
 
 	JsonNode* root = json_parser_get_root(jsonparser);
-	struct network_config* ntwkcfg = network_parseconfig(root);
+	struct network_config* ntwkcfg = network_model_config_deserialise(root);
 	if (ntwkcfg == NULL) {
 		goto invalidrequest;
 	}

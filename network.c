@@ -13,6 +13,7 @@
 #include "network_nl80211.h"
 #include "network_wpasupplicant.h"
 #include "network_dhcp.h"
+#include "config.h"
 
 #define NUMBEROFINTERFACESWHENCONFIGURED 2
 
@@ -35,6 +36,7 @@ enum NETWORK_CONFIGURATION_STATE {
 
 static enum NETWORK_CONFIGURATION_STATE configurationstate = NTWKST_UNCONFIGURED;
 static guint timeoutsource;
+static struct network_config* networkbeingconfigured;
 
 gboolean network_init(const char* interface, gboolean noap) {
 	interfacename = interface;
@@ -257,6 +259,8 @@ gboolean network_configure(struct network_config* ntwkcfg) {
 
 	configurationstate = NTWKST_INPROGRESS;
 
+	networkbeingconfigured = ntwkcfg;
+
 	int networkid = network_wpasupplicant_addnetwork(wpa_ctrl_sta,
 			ntwkcfg->ssid, ntwkcfg->psk,
 			WPASUPPLICANT_NETWORKMODE_STA);
@@ -267,26 +271,6 @@ gboolean network_configure(struct network_config* ntwkcfg) {
 	timeoutsource = g_timeout_add(60 * 1000, network_configure_timeout, NULL);
 
 	return TRUE;
-}
-
-struct network_config* network_parseconfig(JsonNode* root) {
-	if (json_node_get_node_type(root) == JSON_NODE_OBJECT) {
-		JsonObject* rootobj = json_node_get_object(root);
-		if (json_object_has_member(rootobj, "ssid")
-				&& json_object_has_member(rootobj, "psk")) {
-			struct network_config* ntwkcfg = g_malloc0(
-					sizeof(struct network_config));
-			const gchar* ssid = json_object_get_string_member(rootobj, "ssid");
-			const gchar* psk = json_object_get_string_member(rootobj, "psk");
-			strcpy(ntwkcfg->ssid, ssid);
-			strcpy(ntwkcfg->psk, psk);
-			return ntwkcfg;
-		} else
-			g_message("network config is missing required fields");
-	} else
-		g_message("root of network config should be an object");
-
-	return NULL;
 }
 
 static const gchar* configstatestrings[] = { [NTWKST_UNCONFIGURED
@@ -310,6 +294,8 @@ static void network_checkconfigurationstate() {
 	if (configurationstate == NTWKST_INPROGRESS) {
 		g_source_remove(timeoutsource);
 		configurationstate = NTWKST_CONFIGURED;
+		config_onnetworkconfigured(networkbeingconfigured);
+		g_free(networkbeingconfigured);
 		g_message("configuration complete");
 	}
 }
