@@ -29,6 +29,13 @@ static struct nl_sock* routesock;
 
 static GPid stasupplicantpid, apsupplicantpid;
 
+enum NETWORK_CONFIGURATION_STATE {
+	NTWKST_UNCONFIGURED, NTWKST_INPROGRESS, NTWKST_CONFIGURED
+};
+
+static enum NETWORK_CONFIGURATION_STATE configurationstate = NTWKST_UNCONFIGURED;
+static guint timeoutsource;
+
 gboolean network_init(const char* interface, gboolean noap) {
 	interfacename = interface;
 	noapinterface = noap;
@@ -239,13 +246,27 @@ GPtrArray* network_scan() {
 	return scanresults;
 }
 
-void network_addnetwork(struct network_config* ntwkcfg) {
+static gboolean network_configure_timeout(gpointer data) {
+	g_message("config timeout");
+	return FALSE;
+}
+
+gboolean network_configure(struct network_config* ntwkcfg) {
+	if (configurationstate != NTWKST_UNCONFIGURED)
+		return FALSE;
+
+	configurationstate = NTWKST_INPROGRESS;
+
 	int networkid = network_wpasupplicant_addnetwork(wpa_ctrl_sta,
 			ntwkcfg->ssid, ntwkcfg->psk,
 			WPASUPPLICANT_NETWORKMODE_STA);
 	gsize respsz;
 	gchar* resp;
 	network_wpasupplicant_selectnetwork(wpa_ctrl_sta, networkid);
+
+	timeoutsource = g_timeout_add(60 * 1000, network_configure_timeout, NULL);
+
+	return TRUE;
 }
 
 struct network_config* network_parseconfig(JsonNode* root) {
@@ -268,9 +289,31 @@ struct network_config* network_parseconfig(JsonNode* root) {
 	return NULL;
 }
 
+static const gchar* configstatestrings[] = { [NTWKST_UNCONFIGURED
+		] = "unconfigured", [NTWKST_UNCONFIGURED] = "inprogress",
+		[NTWKST_CONFIGURED] = "configured" };
+
 void network_dumpstatus(JsonBuilder* builder) {
 	json_builder_set_member_name(builder, "network");
 	json_builder_begin_object(builder);
+
+	json_builder_set_member_name(builder, "config_state");
+	json_builder_add_string_value(builder,
+			configstatestrings[configurationstate]);
+
 	network_wpasupplicant_dumpstatus(builder);
+	network_dhcp_dumpstatus(builder);
 	json_builder_end_object(builder);
+}
+
+static void network_checkconfigurationstate() {
+	if (configurationstate == NTWKST_INPROGRESS) {
+		g_source_remove(timeoutsource);
+		configurationstate = NTWKST_CONFIGURED;
+		g_message("configuration complete");
+	}
+}
+
+void network_onsupplicantstatechange(gboolean connected) {
+	network_checkconfigurationstate();
 }

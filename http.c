@@ -142,10 +142,12 @@ static int http_handleconnection_configure(struct MHD_Connection* connection,
 		goto invalidrequest;
 	}
 
-	network_addnetwork(ntwkcfg);
+	gboolean configuring = network_configure(ntwkcfg);
 
 	JsonBuilder* jsonbuilder = json_builder_new();
 	json_builder_begin_object(jsonbuilder);
+	json_builder_set_member_name(jsonbuilder, "configuring");
+	json_builder_add_boolean_value(jsonbuilder, configuring);
 	json_builder_end_object(jsonbuilder);
 	gsize contentln;
 	char* content = utils_jsonbuildertostring(jsonbuilder, &contentln);

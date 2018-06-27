@@ -1,9 +1,17 @@
 #define GETTEXT_PACKAGE "gtk20"
 #include <glib.h>
+#include <glib-unix.h>
 #include "buildconfig.h"
 #include "config.h"
 #include "network.h"
 #include "http.h"
+
+static GMainLoop* mainloop;
+
+gboolean siginthandler(gpointer user_data) {
+	g_message("terminating...");
+	g_main_loop_quit(mainloop);
+}
 
 int main(int argc, char** argv) {
 
@@ -51,7 +59,7 @@ int main(int argc, char** argv) {
 	}
 #endif
 
-	GMainLoop* mainloop = g_main_loop_new(NULL, FALSE);
+	mainloop = g_main_loop_new(NULL, FALSE);
 
 	config_init();
 	network_init(interface, noap);
@@ -76,6 +84,7 @@ int main(int argc, char** argv) {
 	//todo should only be called when entering provisioning mode
 	network_startap();
 
+	g_unix_signal_add(SIGINT, siginthandler, NULL);
 	g_main_loop_run(mainloop);
 
 	http_stop();

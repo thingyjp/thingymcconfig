@@ -30,3 +30,7 @@ void network_dhcpserver_start(const gchar* interfacename) {
 void network_dhcpserver_stop() {
 	g_spawn_close_pid(dhcpdpid);
 }
+
+void network_dhcp_dumpstatus(JsonBuilder* builder) {
+
+}

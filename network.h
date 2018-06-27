@@ -18,7 +18,7 @@ int network_waitforinterface(void);
 int network_start(void);
 int network_stop(void);
 GPtrArray* network_scan(void);
-void network_addnetwork(struct network_config* ntwkcfg);
+gboolean network_configure(struct network_config* ntwkcfg);
 struct network_config* network_parseconfig(JsonNode* root);
 
 int network_startap(void);

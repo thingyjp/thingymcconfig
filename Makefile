@@ -45,7 +45,7 @@ network.o: network.c network.h network_priv.h $(COMMONHEADERS)
 network_nl80211.o: network_nl80211.c network_nl80211.h network_priv.h $(COMMONHEADERS)
 	$(CC) $(CFLAGS) $(GLIBJSON) $(LIBNLGENL) $(LIBNLROUTE) -c -o $@ $<
 
-network_wpasupplicant.o: network_wpasupplicant.c network_wpasupplicant.h $(COMMONHEADERS)
+network_wpasupplicant.o: network_wpasupplicant.c network_wpasupplicant.h network_wpasupplicant_priv.h $(COMMONHEADERS)
 	$(CC) $(CFLAGS) $(GLIBJSON) $(HOSTAPD) -c -o $@ $<
 
 network_dhcp.o: network_dhcp.c network_dhcp.h $(COMMONHEADERS)

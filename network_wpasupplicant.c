@@ -1,13 +1,16 @@
 #include "buildconfig.h"
 #include "network_wpasupplicant.h"
+#include "network_wpasupplicant_priv.h"
+#include "network_priv.h"
 
 #define ISOK(rsp) (strcmp(rsp, "OK") == 0)
 
 static GPtrArray* scanresults = NULL;
 static char* wpasupplicantsocketdir = "/tmp/thingy_sockets/";
 static gboolean connected = FALSE;
+static gchar* lasterror = NULL;
 
-typedef void (*wpaeventhandler)(struct wpa_ctrl* wpa_ctrl);
+typedef void (*wpaeventhandler)(struct wpa_ctrl* wpa_ctrl, const gchar* event);
 struct wpaeventhandler_entry {
 	const gchar* command;
 	const wpaeventhandler handler;
@@ -49,15 +52,6 @@ static gchar* network_wpasupplicant_docommandf(struct wpa_ctrl* wpa_ctrl,
 	return reply;
 }
 
-#define MATCHBSSID "((?:[0-9a-f]{2}:{0,1}){6})"
-#define MATCHFREQ "([1-9]{4})"
-#define MATCHRSSI "(-[1-9]{2,3})"
-#define FLAGPATTERN "[A-Z2\\-\\+]*"
-#define MATCHFLAG "\\[("FLAGPATTERN")\\]"
-#define MATCHFLAGS "((?:\\["FLAGPATTERN"\\]){1,})"
-#define MATCHSSID "([a-zA-Z0-9\\-]*)"
-#define SCANRESULTREGEX MATCHBSSID"\\s*"MATCHFREQ"\\s*"MATCHRSSI"\\s*"MATCHFLAGS"\\s*"MATCHSSID
-
 static unsigned network_wpasupplicant_getscanresults_flags(const char* flags) {
 	unsigned f = 0;
 	GRegex* flagregex = g_regex_new(MATCHFLAG, 0, 0, NULL);
@@ -93,7 +87,8 @@ static void network_wpasupplicant_freescanresult(gpointer data) {
 	g_free(data);
 }
 
-static void network_wpasupplicant_getscanresults(struct wpa_ctrl* wpa_ctrl) {
+static void network_wpasupplicant_getscanresults(struct wpa_ctrl* wpa_ctrl,
+		const gchar* event) {
 	if (scanresults != NULL)
 		g_ptr_array_unref(scanresults);
 
@@ -148,19 +143,56 @@ static void network_wpasupplicant_getscanresults(struct wpa_ctrl* wpa_ctrl) {
 }
 
 static void network_wpasupplicant_eventhandler_connect(
-		struct wpa_ctrl* wpa_ctrl) {
+		struct wpa_ctrl* wpa_ctrl, const gchar* event) {
 	connected = TRUE;
+	network_onsupplicantstatechange(connected);
 }
 
 static void network_wpasupplicant_eventhandler_disconnect(
-		struct wpa_ctrl* wpa_ctrl) {
+		struct wpa_ctrl* wpa_ctrl, const gchar* event) {
 	connected = FALSE;
+	network_onsupplicantstatechange(connected);
+}
+
+static GHashTable* network_wpasupplicant_getkeyvalues(const gchar* event) {
+	GHashTable* result = g_hash_table_new_full(g_str_hash, g_str_equal, g_free,
+			g_free);
+
+	GRegex* keyvalueregex = g_regex_new(NETWORK_WPASUPPLICANT_REGEX_KEYVALUE, 0,
+			0, NULL);
+	GMatchInfo* matchinfo;
+	if (g_regex_match(keyvalueregex, event, 0, &matchinfo)) {
+		do {
+			gchar* key = g_match_info_fetch(matchinfo, 1);
+			gchar* value = g_match_info_fetch(matchinfo, 2);
+			if (key != NULL && value != NULL) {
+				//g_message("kv: %s=%s", key, value);
+				g_hash_table_insert(result, key, value);
+			}
+		} while (g_match_info_next(matchinfo, NULL));
+	}
+	g_match_info_free(matchinfo);
+
+	return result;
+}
+
+static void network_wpasupplicant_eventhandler_ssiddisabled(
+		struct wpa_ctrl* wpa_ctrl, const gchar* event) {
+	//<3>CTRL-EVENT-SSID-TEMP-DISABLED id=0 ssid="ghettonet" auth_failures=2 duration=23 reason=WRONG_KEY
+	g_message("here");
+	GHashTable* keyvalues = network_wpasupplicant_getkeyvalues(event);
+	gchar* reason = g_hash_table_lookup(keyvalues, "reason");
+	if (lasterror != NULL)
+		g_free(lasterror);
+	lasterror = g_strdup(reason);
+	g_hash_table_unref(keyvalues);
 }
 
 static const struct wpaeventhandler_entry eventhandlers[] = { {
 WPA_EVENT_SCAN_RESULTS, network_wpasupplicant_getscanresults }, {
 WPA_EVENT_CONNECTED, network_wpasupplicant_eventhandler_connect }, {
-WPA_EVENT_DISCONNECTED, network_wpasupplicant_eventhandler_disconnect } };
+WPA_EVENT_DISCONNECTED, network_wpasupplicant_eventhandler_disconnect }, {
+WPA_EVENT_TEMP_DISABLED, network_wpasupplicant_eventhandler_ssiddisabled } };
 
 static gboolean network_wpasupplicant_onevent(GIOChannel *source,
 		GIOCondition condition, gpointer data) {
@@ -169,9 +201,9 @@ static gboolean network_wpasupplicant_onevent(GIOChannel *source,
 	char* reply = g_malloc0(replylen + 1);
 	wpa_ctrl_recv(wpa_ctrl, reply, &replylen);
 
-#ifdef WSDEBUG
+//#ifdef WSDEBUG
 	g_message("event for wpa supplicant: %s", reply);
-#endif
+//#endif
 
 	GRegex* regex = g_regex_new("^<([0-4])>([A-Z,-]* )", 0, 0, NULL);
 	GMatchInfo* matchinfo;
@@ -179,13 +211,13 @@ static gboolean network_wpasupplicant_onevent(GIOChannel *source,
 		char* level = g_match_info_fetch(matchinfo, 1);
 		char* command = g_match_info_fetch(matchinfo, 2);
 
-#ifdef WSDEBUG
+//#ifdef WSDEBUG
 		g_message("level: %s, command %s", level, command);
-#endif
+//#endif
 
 		for (int i = 0; i < G_N_ELEMENTS(eventhandlers); i++) {
 			if (strcmp(command, eventhandlers[i].command) == 0) {
-				eventhandlers[i].handler(wpa_ctrl);
+				eventhandlers[i].handler(wpa_ctrl, reply);
 				break;
 			}
 		}
@@ -306,7 +338,7 @@ GPtrArray* network_wpasupplicant_getlastscanresults() {
 }
 
 void network_wpasupplicant_stop(struct wpa_ctrl* wpa_ctrl, GPid* pid) {
-
+	wpa_ctrl_close(wpa_ctrl);
 }
 
 void network_wpasupplicant_dumpstatus(JsonBuilder* builder) {
@@ -314,5 +346,11 @@ void network_wpasupplicant_dumpstatus(JsonBuilder* builder) {
 	json_builder_begin_object(builder);
 	json_builder_set_member_name(builder, "connected");
 	json_builder_add_boolean_value(builder, connected);
+
+	if (lasterror != NULL) {
+		json_builder_set_member_name(builder, "lasterror");
+		json_builder_add_string_value(builder, lasterror);
+	}
+
 	json_builder_end_object(builder);
 }
