@@ -1,0 +1,147 @@
+#include <string.h>
+#include "dhcp4_model.h"
+
+struct dhcp4_pktcntx* dhcp4_model_pkt_new() {
+	struct dhcp4_pktcntx* pktcntx = g_malloc0(sizeof(*pktcntx));
+	pktcntx->header = g_malloc0(sizeof(*pktcntx->header));
+	return pktcntx;
+}
+
+static void dhcp4_model_pkt_walkoptions(guint8* options, gsize len,
+		GSList** output) {
+	guint8* option = options;
+
+	while (option < options + len) {
+		guint8 type = *option++;
+		if (type == 0)
+			continue;
+		else if (type == 0xff)
+			break;
+
+		struct dhcp4_opt* opt = g_malloc0(sizeof(struct dhcp4_opt));
+		opt->type = type;
+		opt->len = *option++;
+		opt->data = option;
+		option += opt->len;
+
+		*output = g_slist_append(*output, opt);
+
+		g_message("option %d with %d bytes of data", (int ) opt->type,
+				(int ) opt->len);
+	}
+
+}
+
+struct dhcp4_pktcntx* dhcp4_model_pkt_parse(guint8* pkt, gsize len) {
+	guint8* magic = pkt + sizeof(struct dhcp4_header);
+	if (memcmp(magic, DHCP4_MAGIC, sizeof(DHCP4_MAGIC)) != 0) {
+		g_message("bad dhcp packet magic");
+		return NULL;
+	}
+
+	struct dhcp4_pktcntx* pktcntx = g_malloc0(sizeof(struct dhcp4_pktcntx));
+	pktcntx->header = (struct dhcp4_header*) pkt;
+
+	int optionsoff = sizeof(struct dhcp4_header) + sizeof(DHCP4_MAGIC);
+	dhcp4_model_pkt_walkoptions(pkt + optionsoff, len - optionsoff,
+			&pktcntx->options);
+
+	return pktcntx;
+}
+
+static gint dhcp4_model_findbytype(gconstpointer a, gconstpointer b) {
+	const struct dhcp4_opt* opt = a;
+	return opt->type - GPOINTER_TO_INT(b);
+}
+
+static struct dhcp4_opt* dhcp4_model_optbytype(struct dhcp4_pktcntx* pktcntx,
+		guint8 type) {
+	GSList* opt = g_slist_find_custom(pktcntx->options, GINT_TO_POINTER(type),
+			dhcp4_model_findbytype);
+	if (opt != NULL)
+		return ((struct dhcp4_opt*) opt->data);
+	else
+		return NULL;
+}
+
+void dhcp4_model_pkt_set_dhcpmessagetype(struct dhcp4_pktcntx* pktcntx,
+		guint8 type) {
+	struct dhcp4_opt* dhcptype = g_malloc(sizeof(*dhcptype) + 1);
+	dhcptype->type = DHCP4_OPT_DHCPMESSAGETYPE;
+	dhcptype->len = 1;
+	dhcptype->data = ((guint8*) dhcptype) + sizeof(*dhcptype);
+	*dhcptype->data = type;
+	pktcntx->options = g_slist_append(pktcntx->options, dhcptype);
+}
+
+guint8 dhcp4_model_pkt_get_dhcpmessagetype(struct dhcp4_pktcntx* pktcntx) {
+	struct dhcp4_opt* type = dhcp4_model_optbytype(pktcntx,
+	DHCP4_OPT_DHCPMESSAGETYPE);
+	if (type != NULL)
+		return *type->data;
+	return 0;
+}
+
+void dhcp4_model_pkt_set_requestedip(struct dhcp4_pktcntx* pktcntx, guint8* ip) {
+	struct dhcp4_opt* opt = g_malloc(sizeof(*opt) + DHCP4_ADDRESS_LEN);
+	opt->type = DHCP4_OPT_REQUESTEDIP;
+	opt->len = DHCP4_ADDRESS_LEN;
+	opt->data = ((guint8*) opt) + sizeof(*opt);
+	memcpy(opt->data, ip, DHCP4_ADDRESS_LEN);
+	pktcntx->options = g_slist_append(pktcntx->options, opt);
+}
+
+static gboolean dhcp4_model_pkt_get_addressopt(struct dhcp4_pktcntx* pktcntx,
+		guint8* result, guint8 type) {
+	struct dhcp4_opt* opt = dhcp4_model_optbytype(pktcntx, type);
+	if (opt != NULL) {
+		if (opt->len != DHCP4_ADDRESS_LEN)
+			return FALSE;
+		memcpy(result, opt->data, DHCP4_ADDRESS_LEN);
+		return TRUE;
+	} else
+		return FALSE;
+}
+
+gboolean dhcp4_model_pkt_get_serverid(struct dhcp4_pktcntx* pktcntx,
+		guint8* result) {
+	return dhcp4_model_pkt_get_addressopt(pktcntx, result, DHCP4_OPT_SERVERID);
+}
+
+gboolean dhcp4_model_pkt_get_defaultgw(struct dhcp4_pktcntx* pktcntx,
+		guint8* result) {
+	return dhcp4_model_pkt_get_addressopt(pktcntx, result,
+	DHCP4_OPT_DEFAULTGATEWAY);
+}
+
+gboolean dhcp4_model_pkt_get_subnetmask(struct dhcp4_pktcntx* pktcntx,
+		guint8* result) {
+	return dhcp4_model_pkt_get_addressopt(pktcntx, result,
+	DHCP4_OPT_SUBNETMASK);
+}
+
+static void dhcp4_model_pkt_appendoption(gpointer data, gpointer userdata) {
+	struct dhcp4_opt* opt = data;
+	GByteArray* pktbuff = userdata;
+	g_byte_array_append(pktbuff, &opt->type, sizeof(opt->type));
+	g_byte_array_append(pktbuff, &opt->len, sizeof(opt->len));
+	g_byte_array_append(pktbuff, opt->data, opt->len);
+}
+
+guint8* dhcp4_model_pkt_freetobytes(struct dhcp4_pktcntx* pktcntx, gsize* sz) {
+	GByteArray* bytearray = g_byte_array_new();
+
+	g_byte_array_append(bytearray, (guint8*) pktcntx->header,
+			sizeof(*pktcntx->header));
+
+	g_byte_array_append(bytearray, DHCP4_MAGIC, sizeof(DHCP4_MAGIC));
+
+	g_slist_foreach(pktcntx->options, dhcp4_model_pkt_appendoption, bytearray);
+
+	const guint8 terminator[] = { 0xff };
+	g_byte_array_append(bytearray, terminator, sizeof(terminator));
+
+	*sz = bytearray->len;
+	return g_byte_array_free(bytearray, FALSE);
+}
+

@@ -201,9 +201,9 @@ static gboolean network_wpasupplicant_onevent(GIOChannel *source,
 	char* reply = g_malloc0(replylen + 1);
 	wpa_ctrl_recv(wpa_ctrl, reply, &replylen);
 
-//#ifdef WSDEBUG
+#ifdef WSDEBUG
 	g_message("event for wpa supplicant: %s", reply);
-//#endif
+#endif
 
 	GRegex* regex = g_regex_new("^<([0-4])>([A-Z,-]* )", 0, 0, NULL);
 	GMatchInfo* matchinfo;
@@ -211,9 +211,9 @@ static gboolean network_wpasupplicant_onevent(GIOChannel *source,
 		char* level = g_match_info_fetch(matchinfo, 1);
 		char* command = g_match_info_fetch(matchinfo, 2);
 
-//#ifdef WSDEBUG
+#ifdef WSDEBUG
 		g_message("level: %s, command %s", level, command);
-//#endif
+#endif
 
 		for (int i = 0; i < G_N_ELEMENTS(eventhandlers); i++) {
 			if (strcmp(command, eventhandlers[i].command) == 0) {
