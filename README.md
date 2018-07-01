@@ -6,7 +6,7 @@ a Linux based IoT device.
 
 ### Software
 * libmicrohttpd with TLS enabled
-* ISC dhclient and dhcpd
+* ISC dhcpd
 * wpasupplicant
 
 For buildroot an external package can be found [here](https://github.com/thingyjp/thingymcconfig-buildroot)
@@ -103,8 +103,20 @@ curl -H "Content-Type: application/json" -d '{"ssid":"mynetwork", "psk":"mypassw
 ```json
 {
   "network": {
+    "config_state": "configured",
     "supplicant": {
       "connected": true
+    },
+    "dhcp4": {
+      "state": "configured",
+      "lease": {
+        "ip": "192.168.2.146",
+        "subnetmask": "255.255.255.0",
+        "defaultgw": "192.168.2.1",
+        "nameservers": [
+          "192.168.2.1"
+        ]
+      }
     }
   }
 }
