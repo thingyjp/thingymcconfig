@@ -144,7 +144,7 @@ gboolean dhcp4_model_pkt_get_leasetime(struct dhcp4_pktcntx* pktcntx,
 }
 
 gboolean dhcp4_model_pkt_get_domainnameservers(struct dhcp4_pktcntx* pktcntx,
-		guint32* result, guint* numresult) {
+		guint8* result, guint8* numresult) {
 	//TODO this is wrong!
 	gboolean ret = dhcp4_model_pkt_get_fourbyteopt(pktcntx, result,
 	DHCP4_OPT_DOMAINNAMESERVER);

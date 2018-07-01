@@ -104,6 +104,11 @@ static void dhcp4_client_changestate(struct dhcp4_client_cntx* cntx,
 	case DHCP4CS_CONFIGURED:
 		cntx->currentlease = cntx->pendinglease;
 		cntx->pendinglease = NULL;
+		_dhcp4_client_configureinterface(cntx->ifidx,
+				cntx->currentlease->leasedip, cntx->currentlease->subnetmask,
+				cntx->currentlease->defaultgw,
+				(guint8*) cntx->currentlease->nameservers,
+				cntx->currentlease->numnameservers);
 		g_timeout_add(cntx->currentlease->leasetime * 1000,
 				dhcp4_client_leasetimeout, cntx);
 		break;
@@ -129,7 +134,7 @@ static void dhcp4_client_processdhcppkt(struct dhcp4_client_cntx* cntx,
 				dhcp4_model_pkt_get_defaultgw(pktcntx, lease->defaultgw);
 				dhcp4_model_pkt_get_leasetime(pktcntx, &lease->leasetime);
 				dhcp4_model_pkt_get_domainnameservers(pktcntx,
-						lease->nameservers, &lease->numnameservers);
+						(guint8*) lease->nameservers, &lease->numnameservers);
 				g_message(
 						"have dhcp offer of "IP4_ADDRFMT"/"IP4_ADDRFMT" for %u seconds from "IP4_ADDRFMT,
 						IP4_ARGS(lease->leasedip), IP4_ARGS(lease->subnetmask),

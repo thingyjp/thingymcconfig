@@ -1,10 +1,28 @@
 #include "buildconfig.h"
 #include "network_dhcp.h"
+#include "network_rtnetlink.h"
 #include "dhcp4_client.h"
 #include "ip4.h"
 
 static struct dhcp4_client_cntx* dhcp4clientcntx;
 static GPid dhcpdpid;
+
+void _dhcp4_client_configureinterface(unsigned ifidx, const guint8* address,
+		const guint8* netmask, const guint8* gateway, const guint8* nameservers,
+		const guint8 numnameservers) {
+
+	guint32 nm = *((guint32*) netmask);
+	int nmbits = 0;
+	for (int i = 0; i < sizeof(nm) * 8; i++)
+		nmbits += (nm >> i) & 1;
+
+	GString* addrgstr = g_string_new(NULL);
+	g_string_append_printf(addrgstr, IP4_ADDRFMT"/%d", IP4_ARGS(address),
+			nmbits);
+	gchar* addrstr = g_string_free(addrgstr, FALSE);
+	network_rtnetlink_setipv4addr(ifidx, addrstr);
+	g_free(addrstr);
+}
 
 void network_dhcpclient_start(unsigned ifidx, const gchar* interfacename,
 		const guint8* interfacemac) {

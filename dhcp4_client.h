@@ -35,3 +35,13 @@ struct dhcp4_client_cntx {
 struct dhcp4_client_cntx* dhcp4_client_new(unsigned ifidx, const guint8* mac);
 void dhcp4_client_start(struct dhcp4_client_cntx* cntx);
 void dhcp4_client_stop(struct dhcp4_client_cntx* cntx);
+
+/* The intention here is to not make this stuff too dependent on the rest
+ * of the code so if it turns out to be useful somewhere else in the future
+ * it's easy to split out. That said here are some external functions that
+ * need to be provided elsewhere
+ */
+
+void _dhcp4_client_configureinterface(unsigned ifidx, const guint8* address,
+		const guint8* netmask, const guint8* gateway, const guint8* nameservers,
+		const guint8 numnameservers);
