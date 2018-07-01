@@ -2,6 +2,7 @@
 #include "dhcp4_model.h"
 #include "dhcp4.h"
 #include "packetsocket.h"
+#include "ip4.h"
 
 static void dhcp4_client_changestate(struct dhcp4_client_cntx* cntx,
 		enum dhcp4_clientstate newstate);
@@ -109,9 +110,6 @@ static void dhcp4_client_changestate(struct dhcp4_client_cntx* cntx,
 	}
 }
 
-#define IPV4ADDRFMT "%u.%u.%u.%u"
-#define IPV4ARGS(a) (unsigned) a[0], (unsigned) a[1],(unsigned) a[2],(unsigned) a[3]
-
 static void dhcp4_client_processdhcppkt(struct dhcp4_client_cntx* cntx,
 		struct dhcp4_pktcntx* pktcntx) {
 	if (pktcntx->header->xid == cntx->xid) {
@@ -130,10 +128,12 @@ static void dhcp4_client_processdhcppkt(struct dhcp4_client_cntx* cntx,
 				dhcp4_model_pkt_get_subnetmask(pktcntx, lease->subnetmask);
 				dhcp4_model_pkt_get_defaultgw(pktcntx, lease->defaultgw);
 				dhcp4_model_pkt_get_leasetime(pktcntx, &lease->leasetime);
+				dhcp4_model_pkt_get_domainnameservers(pktcntx,
+						lease->nameservers, &lease->numnameservers);
 				g_message(
-						"have dhcp offer of "IPV4ADDRFMT"/"IPV4ADDRFMT" for %u seconds from "IPV4ADDRFMT,
-						IPV4ARGS(lease->leasedip), IPV4ARGS(lease->subnetmask),
-						lease->leasetime, IPV4ARGS(lease->serverip));
+						"have dhcp offer of "IP4_ADDRFMT"/"IP4_ADDRFMT" for %u seconds from "IP4_ADDRFMT,
+						IP4_ARGS(lease->leasedip), IP4_ARGS(lease->subnetmask),
+						lease->leasetime, IP4_ARGS(lease->serverip));
 				cntx->pendinglease = lease;
 				dhcp4_client_changestate(cntx, DHCP4CS_REQUESTING);
 				break;

@@ -16,6 +16,7 @@ struct dhcp4_client_lease {
 	guint8 subnetmask[DHCP4_ADDRESS_LEN];
 	guint8 defaultgw[DHCP4_ADDRESS_LEN];
 	guint8 nameservers[DHCP4_CLIENT_MAXNAMESERVERS][DHCP4_ADDRESS_LEN];
+	guint8 numnameservers;
 	guint32 leasetime;
 };
 

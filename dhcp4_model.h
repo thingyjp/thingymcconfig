@@ -48,4 +48,7 @@ gboolean dhcp4_model_pkt_get_subnetmask(struct dhcp4_pktcntx* pktcntx,
 		guint8* result);
 gboolean dhcp4_model_pkt_get_leasetime(struct dhcp4_pktcntx* pktcntx,
 		guint32* result);
+gboolean dhcp4_model_pkt_get_domainnameservers(struct dhcp4_pktcntx* pktcntx,
+		guint32* result, guint* numresult);
+
 guint8* dhcp4_model_pkt_freetobytes(struct dhcp4_pktcntx* pktcntx, gsize* sz);

@@ -143,6 +143,16 @@ gboolean dhcp4_model_pkt_get_leasetime(struct dhcp4_pktcntx* pktcntx,
 	return FALSE;
 }
 
+gboolean dhcp4_model_pkt_get_domainnameservers(struct dhcp4_pktcntx* pktcntx,
+		guint32* result, guint* numresult) {
+	//TODO this is wrong!
+	gboolean ret = dhcp4_model_pkt_get_fourbyteopt(pktcntx, result,
+	DHCP4_OPT_DOMAINNAMESERVER);
+	if (ret)
+		*numresult = 1;
+	return ret;
+}
+
 static void dhcp4_model_pkt_appendoption(gpointer data, gpointer userdata) {
 	struct dhcp4_opt* opt = data;
 	GByteArray* pktbuff = userdata;
