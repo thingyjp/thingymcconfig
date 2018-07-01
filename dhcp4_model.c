@@ -1,4 +1,5 @@
 #include <string.h>
+#include <arpa/inet.h>
 #include "dhcp4_model.h"
 
 struct dhcp4_pktcntx* dhcp4_model_pkt_new() {
@@ -33,7 +34,9 @@ static void dhcp4_model_pkt_walkoptions(guint8* options, gsize len,
 }
 
 struct dhcp4_pktcntx* dhcp4_model_pkt_parse(guint8* pkt, gsize len) {
-	guint8* magic = pkt + sizeof(struct dhcp4_header);
+	unsigned headerend = sizeof(struct dhcp4_header) + DHCP4_SNAME_LEN
+			+ DHCP4_FILE_LEN;
+	guint8* magic = pkt + headerend;
 	if (memcmp(magic, DHCP4_MAGIC, sizeof(DHCP4_MAGIC)) != 0) {
 		g_message("bad dhcp packet magic");
 		return NULL;
@@ -42,7 +45,7 @@ struct dhcp4_pktcntx* dhcp4_model_pkt_parse(guint8* pkt, gsize len) {
 	struct dhcp4_pktcntx* pktcntx = g_malloc0(sizeof(struct dhcp4_pktcntx));
 	pktcntx->header = (struct dhcp4_header*) pkt;
 
-	int optionsoff = sizeof(struct dhcp4_header) + sizeof(DHCP4_MAGIC);
+	int optionsoff = headerend + sizeof(DHCP4_MAGIC);
 	dhcp4_model_pkt_walkoptions(pkt + optionsoff, len - optionsoff,
 			&pktcntx->options);
 
@@ -91,7 +94,7 @@ void dhcp4_model_pkt_set_requestedip(struct dhcp4_pktcntx* pktcntx, guint8* ip) 
 	pktcntx->options = g_slist_append(pktcntx->options, opt);
 }
 
-static gboolean dhcp4_model_pkt_get_addressopt(struct dhcp4_pktcntx* pktcntx,
+static gboolean dhcp4_model_pkt_get_fourbyteopt(struct dhcp4_pktcntx* pktcntx,
 		guint8* result, guint8 type) {
 	struct dhcp4_opt* opt = dhcp4_model_optbytype(pktcntx, type);
 	if (opt != NULL) {
@@ -105,19 +108,30 @@ static gboolean dhcp4_model_pkt_get_addressopt(struct dhcp4_pktcntx* pktcntx,
 
 gboolean dhcp4_model_pkt_get_serverid(struct dhcp4_pktcntx* pktcntx,
 		guint8* result) {
-	return dhcp4_model_pkt_get_addressopt(pktcntx, result, DHCP4_OPT_SERVERID);
+	return dhcp4_model_pkt_get_fourbyteopt(pktcntx, result, DHCP4_OPT_SERVERID);
 }
 
 gboolean dhcp4_model_pkt_get_defaultgw(struct dhcp4_pktcntx* pktcntx,
 		guint8* result) {
-	return dhcp4_model_pkt_get_addressopt(pktcntx, result,
+	return dhcp4_model_pkt_get_fourbyteopt(pktcntx, result,
 	DHCP4_OPT_DEFAULTGATEWAY);
 }
 
 gboolean dhcp4_model_pkt_get_subnetmask(struct dhcp4_pktcntx* pktcntx,
 		guint8* result) {
-	return dhcp4_model_pkt_get_addressopt(pktcntx, result,
+	return dhcp4_model_pkt_get_fourbyteopt(pktcntx, result,
 	DHCP4_OPT_SUBNETMASK);
+}
+
+gboolean dhcp4_model_pkt_get_leasetime(struct dhcp4_pktcntx* pktcntx,
+		guint32* result) {
+	guint32 leasetime;
+	if (dhcp4_model_pkt_get_fourbyteopt(pktcntx, &leasetime,
+	DHCP4_OPT_LEASETIME)) {
+		*result = ntohl(leasetime);
+		return TRUE;
+	}
+	return FALSE;
 }
 
 static void dhcp4_model_pkt_appendoption(gpointer data, gpointer userdata) {
@@ -129,10 +143,16 @@ static void dhcp4_model_pkt_appendoption(gpointer data, gpointer userdata) {
 }
 
 guint8* dhcp4_model_pkt_freetobytes(struct dhcp4_pktcntx* pktcntx, gsize* sz) {
+
+	guint8* padding = g_malloc0(128);
+
 	GByteArray* bytearray = g_byte_array_new();
 
 	g_byte_array_append(bytearray, (guint8*) pktcntx->header,
 			sizeof(*pktcntx->header));
+
+	g_byte_array_append(bytearray, padding, DHCP4_SNAME_LEN);
+	g_byte_array_append(bytearray, padding, DHCP4_FILE_LEN);
 
 	g_byte_array_append(bytearray, DHCP4_MAGIC, sizeof(DHCP4_MAGIC));
 

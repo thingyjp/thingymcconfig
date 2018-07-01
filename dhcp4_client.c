@@ -32,31 +32,14 @@ static void dhcp4_client_fillheader(struct dhcp4_client_cntx* cntx,
 
 static void dhcp4_client_send_discover(struct dhcp4_client_cntx* cntx) {
 	cntx->xid = g_rand_int(cntx->rand);
-	struct dhcp4_header header;
-	dhcp4_client_fillheader(cntx, &header);
-
-	GByteArray* bytes = g_byte_array_new();
-	g_byte_array_append(bytes, &header, sizeof(header));
-	g_byte_array_append(bytes, DHCP4_MAGIC, sizeof(DHCP4_MAGIC));
-
-	struct dhcp4_opt dhcptype;
-	guint8 typedata[] = { DHCP4_DHCPMESSAGETYPE_DISCOVER };
-	dhcptype.type = DHCP4_OPT_DHCPMESSAGETYPE;
-	dhcptype.len = 1;
-	dhcptype.data = typedata;
-
-	g_byte_array_append(bytes, &dhcptype.type, 1);
-	g_byte_array_append(bytes, &dhcptype.len, 1);
-	g_byte_array_append(bytes, dhcptype.data, dhcptype.len);
-
-	guint8 terminator[] = { 0xff };
-	g_byte_array_append(bytes, &terminator, sizeof(terminator));
-
+	struct dhcp4_pktcntx* pkt = dhcp4_model_pkt_new();
+	dhcp4_client_fillheader(cntx, pkt->header);
+	dhcp4_model_pkt_set_dhcpmessagetype(pkt, DHCP4_DHCPMESSAGETYPE_DISCOVER);
+	gsize pktsz;
+	guint8* pktbytes = dhcp4_model_pkt_freetobytes(pkt, &pktsz);
 	packetsocket_send_udp(cntx->rawsocket, cntx->ifidx, DHCP4_PORT_CLIENT,
-	DHCP4_PORT_SERVER, bytes->data, bytes->len);
-
-	g_byte_array_free(bytes, TRUE);
-
+	DHCP4_PORT_SERVER, pktbytes, pktsz);
+	g_free(pktbytes);
 }
 
 static gboolean dhcp4_client_discoverytimeout(gpointer data) {
@@ -106,6 +89,10 @@ static void dhcp4_client_changestate(struct dhcp4_client_cntx* cntx,
 		dhcp4_client_send_request(cntx);
 		g_timeout_add(10 * 1000, dhcp4_client_requesttimeout, cntx);
 		break;
+	case DHCP4CS_CONFIGURED:
+		cntx->currentlease = cntx->pendinglease;
+		cntx->pendinglease = NULL;
+		break;
 	}
 }
 
@@ -129,10 +116,11 @@ static void dhcp4_client_processdhcppkt(struct dhcp4_client_cntx* cntx,
 						sizeof(lease->leasedip));
 				dhcp4_model_pkt_get_subnetmask(pktcntx, lease->subnetmask);
 				dhcp4_model_pkt_get_defaultgw(pktcntx, lease->defaultgw);
+				dhcp4_model_pkt_get_leasetime(pktcntx, &lease->leasetime);
 				g_message(
-						"have dhcp offer of "IPV4ADDRFMT"/"IPV4ADDRFMT" from "IPV4ADDRFMT,
+						"have dhcp offer of "IPV4ADDRFMT"/"IPV4ADDRFMT" for %u seconds from "IPV4ADDRFMT,
 						IPV4ARGS(lease->leasedip), IPV4ARGS(lease->subnetmask),
-						IPV4ARGS(lease->serverip));
+						lease->leasetime, IPV4ARGS(lease->serverip));
 				cntx->pendinglease = lease;
 				dhcp4_client_changestate(cntx, DHCP4CS_REQUESTING);
 				break;

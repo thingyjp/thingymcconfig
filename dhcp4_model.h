@@ -22,8 +22,6 @@ struct __attribute__((packed)) dhcp4_header {
 	guint8 siaddr[DHCP4_ADDRESS_LEN];
 	guint32 giaddr;
 	guint8 chaddr[16];
-	guint8 sname[64];
-	guint8 file[128];
 };
 
 struct dhcp4_pktcntx {
@@ -47,4 +45,6 @@ gboolean dhcp4_model_pkt_get_defaultgw(struct dhcp4_pktcntx* pktcntx,
 		guint8* result);
 gboolean dhcp4_model_pkt_get_subnetmask(struct dhcp4_pktcntx* pktcntx,
 		guint8* result);
+gboolean dhcp4_model_pkt_get_leasetime(struct dhcp4_pktcntx* pktcntx,
+		guint32* result);
 guint8* dhcp4_model_pkt_freetobytes(struct dhcp4_pktcntx* pktcntx, gsize* sz);

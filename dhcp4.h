@@ -19,3 +19,5 @@ static const guint8 DHCP4_MAGIC[] = { 0x63, 0x82, 0x53, 0x63 };
 #define DHCP4_PORT_CLIENT	68
 
 #define DHCP4_ADDRESS_LEN	4
+#define DHCP4_SNAME_LEN		64
+#define DHCP4_FILE_LEN		128

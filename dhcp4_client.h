@@ -4,6 +4,8 @@
 #include <gio/gio.h>
 #include "dhcp4.h"
 
+#define DHCP4_CLIENT_MAXNAMESERVERS	4
+
 enum dhcp4_clientstate {
 	DHCP4CS_IDLE, DHCP4CS_DISCOVERING, DHCP4CS_REQUESTING, DHCP4CS_CONFIGURED
 };
@@ -13,6 +15,8 @@ struct dhcp4_client_lease {
 	guint8 leasedip[DHCP4_ADDRESS_LEN];
 	guint8 subnetmask[DHCP4_ADDRESS_LEN];
 	guint8 defaultgw[DHCP4_ADDRESS_LEN];
+	guint8 nameservers[DHCP4_CLIENT_MAXNAMESERVERS][DHCP4_ADDRESS_LEN];
+	guint32 leasetime;
 };
 
 struct dhcp4_client_cntx {
@@ -24,6 +28,7 @@ struct dhcp4_client_cntx {
 	int rawsocket;
 	guint32 xid;
 	struct dhcp4_client_lease* pendinglease;
+	struct dhcp4_client_lease* currentlease;
 };
 
 struct dhcp4_client_cntx* dhcp4_client_new(unsigned ifidx, guint8* mac);
