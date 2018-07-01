@@ -39,6 +39,7 @@ void dhcp4_model_pkt_set_subnetmask(struct dhcp4_pktcntx* pktcntx);
 void dhcp4_model_pkt_add_router(struct dhcp4_pktcntx* pktcntx);
 void dhcp4_model_pkt_add_dnsserver(struct dhcp4_pktcntx* pktcntx);
 
+void dhcp4_model_pkt_set_serverid(struct dhcp4_pktcntx* pktcntx, guint8* ip);
 gboolean dhcp4_model_pkt_get_serverid(struct dhcp4_pktcntx* pktcntx,
 		guint8* result);
 gboolean dhcp4_model_pkt_get_defaultgw(struct dhcp4_pktcntx* pktcntx,

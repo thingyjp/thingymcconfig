@@ -56,6 +56,7 @@ static void dhcp4_client_send_request(struct dhcp4_client_cntx* cntx) {
 	struct dhcp4_pktcntx* pkt = dhcp4_model_pkt_new();
 	dhcp4_client_fillheader(cntx, pkt->header);
 	dhcp4_model_pkt_set_dhcpmessagetype(pkt, DHCP4_DHCPMESSAGETYPE_REQUEST);
+	dhcp4_model_pkt_set_serverid(pkt, cntx->pendinglease->serverip);
 	dhcp4_model_pkt_set_requestedip(pkt, cntx->pendinglease->leasedip);
 	gsize pktsz;
 	guint8* pktbytes = dhcp4_model_pkt_freetobytes(pkt, &pktsz);
@@ -71,6 +72,16 @@ static gboolean dhcp4_client_requesttimeout(gpointer data) {
 		return FALSE;
 
 	g_message("timeout waiting for ack");
+	dhcp4_client_changestate(cntx, DHCP4CS_DISCOVERING);
+	return FALSE;
+}
+
+static gboolean dhcp4_client_leasetimeout(gpointer data) {
+	struct dhcp4_client_cntx* cntx = data;
+
+	if (cntx->state != DHCP4CS_CONFIGURED)
+		return FALSE;
+
 	dhcp4_client_changestate(cntx, DHCP4CS_DISCOVERING);
 	return FALSE;
 }
@@ -92,6 +103,8 @@ static void dhcp4_client_changestate(struct dhcp4_client_cntx* cntx,
 	case DHCP4CS_CONFIGURED:
 		cntx->currentlease = cntx->pendinglease;
 		cntx->pendinglease = NULL;
+		g_timeout_add(cntx->currentlease->leasetime * 1000,
+				dhcp4_client_leasetimeout, cntx);
 		break;
 	}
 }

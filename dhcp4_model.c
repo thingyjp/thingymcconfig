@@ -69,12 +69,12 @@ static struct dhcp4_opt* dhcp4_model_optbytype(struct dhcp4_pktcntx* pktcntx,
 
 void dhcp4_model_pkt_set_dhcpmessagetype(struct dhcp4_pktcntx* pktcntx,
 		guint8 type) {
-	struct dhcp4_opt* dhcptype = g_malloc(sizeof(*dhcptype) + 1);
-	dhcptype->type = DHCP4_OPT_DHCPMESSAGETYPE;
-	dhcptype->len = 1;
-	dhcptype->data = ((guint8*) dhcptype) + sizeof(*dhcptype);
-	*dhcptype->data = type;
-	pktcntx->options = g_slist_append(pktcntx->options, dhcptype);
+	struct dhcp4_opt* opt = g_malloc(sizeof(*opt) + 1);
+	opt->type = DHCP4_OPT_DHCPMESSAGETYPE;
+	opt->len = 1;
+	opt->data = ((guint8*) opt) + sizeof(*opt);
+	*opt->data = type;
+	pktcntx->options = g_slist_append(pktcntx->options, opt);
 }
 
 guint8 dhcp4_model_pkt_get_dhcpmessagetype(struct dhcp4_pktcntx* pktcntx) {
@@ -85,13 +85,18 @@ guint8 dhcp4_model_pkt_get_dhcpmessagetype(struct dhcp4_pktcntx* pktcntx) {
 	return 0;
 }
 
-void dhcp4_model_pkt_set_requestedip(struct dhcp4_pktcntx* pktcntx, guint8* ip) {
+static void dhcp4_model_pkt_set_fourbyteopt(struct dhcp4_pktcntx* pktcntx,
+		guint8 type, guint8* data) {
 	struct dhcp4_opt* opt = g_malloc(sizeof(*opt) + DHCP4_ADDRESS_LEN);
-	opt->type = DHCP4_OPT_REQUESTEDIP;
+	opt->type = type;
 	opt->len = DHCP4_ADDRESS_LEN;
 	opt->data = ((guint8*) opt) + sizeof(*opt);
-	memcpy(opt->data, ip, DHCP4_ADDRESS_LEN);
+	memcpy(opt->data, data, DHCP4_ADDRESS_LEN);
 	pktcntx->options = g_slist_append(pktcntx->options, opt);
+}
+
+void dhcp4_model_pkt_set_requestedip(struct dhcp4_pktcntx* pktcntx, guint8* ip) {
+	dhcp4_model_pkt_set_fourbyteopt(pktcntx, DHCP4_OPT_REQUESTEDIP, ip);
 }
 
 static gboolean dhcp4_model_pkt_get_fourbyteopt(struct dhcp4_pktcntx* pktcntx,
@@ -104,6 +109,10 @@ static gboolean dhcp4_model_pkt_get_fourbyteopt(struct dhcp4_pktcntx* pktcntx,
 		return TRUE;
 	} else
 		return FALSE;
+}
+
+void dhcp4_model_pkt_set_serverid(struct dhcp4_pktcntx* pktcntx, guint8* ip) {
+	dhcp4_model_pkt_set_fourbyteopt(pktcntx, DHCP4_OPT_SERVERID, ip);
 }
 
 gboolean dhcp4_model_pkt_get_serverid(struct dhcp4_pktcntx* pktcntx,
@@ -126,7 +135,7 @@ gboolean dhcp4_model_pkt_get_subnetmask(struct dhcp4_pktcntx* pktcntx,
 gboolean dhcp4_model_pkt_get_leasetime(struct dhcp4_pktcntx* pktcntx,
 		guint32* result) {
 	guint32 leasetime;
-	if (dhcp4_model_pkt_get_fourbyteopt(pktcntx, &leasetime,
+	if (dhcp4_model_pkt_get_fourbyteopt(pktcntx, (guint8*) &leasetime,
 	DHCP4_OPT_LEASETIME)) {
 		*result = ntohl(leasetime);
 		return TRUE;
@@ -140,6 +149,11 @@ static void dhcp4_model_pkt_appendoption(gpointer data, gpointer userdata) {
 	g_byte_array_append(pktbuff, &opt->type, sizeof(opt->type));
 	g_byte_array_append(pktbuff, &opt->len, sizeof(opt->len));
 	g_byte_array_append(pktbuff, opt->data, opt->len);
+}
+
+static void dhcp4_model_pkt_freeoption(gpointer data) {
+	struct dhcp4_opt* opt = data;
+	g_free(opt);
 }
 
 guint8* dhcp4_model_pkt_freetobytes(struct dhcp4_pktcntx* pktcntx, gsize* sz) {
@@ -160,6 +174,10 @@ guint8* dhcp4_model_pkt_freetobytes(struct dhcp4_pktcntx* pktcntx, gsize* sz) {
 
 	const guint8 terminator[] = { 0xff };
 	g_byte_array_append(bytearray, terminator, sizeof(terminator));
+
+	g_free(pktcntx->header);
+	g_slist_free_full(pktcntx->options, dhcp4_model_pkt_freeoption);
+	g_free(pktcntx);
 
 	*sz = bytearray->len;
 	return g_byte_array_free(bytearray, FALSE);
