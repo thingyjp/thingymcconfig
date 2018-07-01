@@ -5,10 +5,10 @@
 static struct dhcp4_client_cntx* dhcp4clientcntx;
 static GPid dhcpdpid;
 
-void network_dhcpclient_start(unsigned ifidx, const gchar* interfacename) {
+void network_dhcpclient_start(unsigned ifidx, const gchar* interfacename,
+		const guint8* interfacemac) {
 	g_message("starting dhcp4 client for %s", interfacename);
-	guint8 mac[] = { 0x08, 0x6a, 0x0a, 0x97, 0x63, 0x9c };
-	dhcp4clientcntx = dhcp4_client_new(ifidx, mac);
+	dhcp4clientcntx = dhcp4_client_new(ifidx, interfacemac);
 	dhcp4_client_start(dhcp4clientcntx);
 }
 

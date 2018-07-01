@@ -16,9 +16,9 @@
 #define NUMBEROFINTERFACESWHENCONFIGURED 2
 
 static const char* interfacename;
-static int stainterfaceindex;
+struct network_interface *stainterface, *apinterface;
+
 static char* apinterfacename;
-static int apinterfaceindex;
 
 static gboolean noapinterface;
 
@@ -82,65 +82,50 @@ static gboolean network_setupinterfaces() {
 	guint32 wiphy;
 	gboolean ret = FALSE;
 
+	struct network_interface* sta;
+	struct network_interface* ap;
+
 	if (network_nl80211_findphy(interfaces, interfacename, &wiphy)) {
 		network_filteroutoutherphys(interfaces, wiphy);
 		int remainingnetworks = g_hash_table_size(interfaces);
 		if (remainingnetworks == 1) {
 			g_message("ap interface is missing, will create");
-			struct network_interface* masterinterface;
-			masterinterface = g_hash_table_lookup(interfaces, interfacename);
-			g_assert(masterinterface != NULL);
-			stainterfaceindex = masterinterface->ifidx;
-			/*
-			 // create the station VIF
-			 {
-			 network_createstainterface(interfaces, masterinterface);
-			 struct network_interface* stainterface = g_hash_table_find(
-			 interfaces, network_findstainterface,
-			 masterinterface->ifname);
-			 g_assert(stainterface != NULL);
-			 g_message("STA interface created -> %s", stainterface->ifname);
-			 stainterfacename = stainterface->ifname;
-			 }
-			 */
+			sta = g_hash_table_lookup(interfaces, interfacename);
+			g_assert(sta != NULL);
 			// create the ap VIF
 			{
 				if (!noapinterface) {
-					network_nl80211_createapvif(interfaces, masterinterface);
-					struct network_interface* apinterface = g_hash_table_find(
-							interfaces, network_nl80211_findapvif,
-							masterinterface->ifname);
-					g_assert(apinterface != NULL);
-					g_message("AP interface created -> %s",
-							apinterface->ifname);
-					apinterfacename = apinterface->ifname;
-					apinterfaceindex = apinterface->ifidx;
+					network_nl80211_createapvif(interfaces, sta);
+					ap = g_hash_table_find(interfaces,
+							network_nl80211_findapvif, sta->ifname);
+					g_assert(ap != NULL);
+					g_message("AP interface created -> %s", ap->ifname);
+					apinterfacename = ap->ifname;
 				}
 			}
 
 			ret = TRUE;
 		} else if (remainingnetworks == NUMBEROFINTERFACESWHENCONFIGURED) {
-			struct network_interface* masterinterface;
-			masterinterface = g_hash_table_lookup(interfaces, interfacename);
-			g_assert(masterinterface != NULL);
-			stainterfaceindex = masterinterface->ifidx;
-			/*			struct network_interface* sta = g_hash_table_find(interfaces,
-			 network_findstainterface, masterinterface->ifname);
-			 g_assert(sta != NULL);
-			 stainterfacename = sta->ifname;*/
-			struct network_interface* ap = g_hash_table_find(interfaces,
-					network_nl80211_findapvif, masterinterface->ifname);
+			sta = g_hash_table_lookup(interfaces, interfacename);
+			g_assert(sta != NULL);
+			ap = g_hash_table_find(interfaces, network_nl80211_findapvif,
+					sta->ifname);
 			g_assert(ap != NULL);
 			apinterfacename = ap->ifname;
-			apinterfaceindex = ap->ifidx;
-
 			g_message("reusing existing interface %s", apinterfacename);
-
 			ret = TRUE;
 		} else {
 			g_message("FIXME: Add handling half configured situations");
 		}
 	}
+
+	if (ret) {
+		stainterface = g_malloc(sizeof(*stainterface));
+		memcpy(stainterface, sta, sizeof(*stainterface));
+		apinterface = g_malloc(sizeof(*apinterface));
+		memcpy(apinterface, ap, sizeof(*apinterface));
+	}
+
 	g_hash_table_unref(interfaces);
 
 	return ret;
@@ -151,7 +136,8 @@ int network_start() {
 		return -1;
 	network_wpasupplicant_start(&wpa_ctrl_sta, &wpa_event_sta, interfacename,
 			&stasupplicantpid);
-	network_dhcpclient_start(stainterfaceindex, interfacename);
+	network_dhcpclient_start(stainterface->ifidx, interfacename,
+			stainterface->mac);
 
 	const struct config* cfg = config_getconfig();
 	if (cfg->ntwkcfg != NULL) {
@@ -188,7 +174,7 @@ int network_startap() {
 	if (noapinterface)
 		return 0;
 
-	network_rtnetlink_setipv4addr(apinterfaceindex, "10.0.0.1/30");
+	network_rtnetlink_setipv4addr(apinterface->ifidx, "10.0.0.1/30");
 	if (!network_wpasupplicant_start(&wpa_ctrl_ap, &wpa_event_ap,
 			apinterfacename, &apsupplicantpid))
 		goto err_startsupp;

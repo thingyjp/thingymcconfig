@@ -6,7 +6,7 @@
 static void dhcp4_client_changestate(struct dhcp4_client_cntx* cntx,
 		enum dhcp4_clientstate newstate);
 
-struct dhcp4_client_cntx* dhcp4_client_new(unsigned ifidx, guint8* mac) {
+struct dhcp4_client_cntx* dhcp4_client_new(unsigned ifidx, const guint8* mac) {
 	struct dhcp4_client_cntx* cntx = g_malloc0(
 			sizeof(struct dhcp4_client_cntx));
 

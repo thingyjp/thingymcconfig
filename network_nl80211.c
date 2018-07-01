@@ -47,6 +47,10 @@ static int network_netlink_interface_callback(struct nl_msg *msg, void *arg) {
 		case NL80211_ATTR_IFINDEX:
 			interface->ifidx = nla_get_u32(nla);
 			break;
+		case NL80211_ATTR_MAC:
+			//todo feels wrong to me..
+			memcpy(interface->mac, nla_data(nla), ETHER_ADDR_LEN);
+			break;
 		}
 	}
 	GHashTable* interfaces = arg;

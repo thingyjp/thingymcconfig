@@ -1,12 +1,14 @@
 #pragma once
 
 #include <glib.h>
+#include <net/ethernet.h>
 
 struct network_interface {
 	guint32 wiphy;
 	gchar* ifname;
 	gboolean ap;
 	guint32 ifidx;
+	guint8 mac[ETHER_ADDR_LEN];
 };
 
 void network_nl80211_createapvif(GHashTable* interfaces,
