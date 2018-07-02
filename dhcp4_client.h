@@ -44,6 +44,8 @@ void dhcp4_client_stop(struct dhcp4_client_cntx* cntx);
  * need to be provided elsewhere
  */
 
+void _dhcp4_client_clearinterface(unsigned ifidx);
+
 void _dhcp4_client_configureinterface(unsigned ifidx, const guint8* address,
 		const guint8* netmask, const guint8* gateway, const guint8* nameservers,
 		const guint8 numnameservers);

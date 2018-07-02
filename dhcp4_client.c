@@ -180,6 +180,7 @@ static void dhcp4_client_changestate(struct dhcp4_client_cntx* cntx,
 }
 
 void dhcp4_client_start(struct dhcp4_client_cntx* cntx) {
+	_dhcp4_client_clearinterface(cntx->ifidx);
 	dhcp4_client_changestate(cntx, DHCP4CS_DISCOVERING);
 }
 

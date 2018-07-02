@@ -174,6 +174,7 @@ int network_startap() {
 	if (noapinterface)
 		return 0;
 
+	network_rtnetlink_clearipv4addr(apinterface->ifidx);
 	network_rtnetlink_setipv4addr(apinterface->ifidx, "10.0.0.1/30");
 	if (!network_wpasupplicant_start(&wpa_ctrl_ap, &wpa_event_ap,
 			apinterfacename, &apsupplicantpid))
@@ -219,7 +220,8 @@ gboolean network_configure(struct network_config* ntwkcfg) {
 			WPASUPPLICANT_NETWORKMODE_STA);
 	network_wpasupplicant_selectnetwork(wpa_ctrl_sta, networkid);
 
-	timeoutsource = g_timeout_add(60 * 1000, network_configure_timeout, NULL);
+	timeoutsource = g_timeout_add(60 * 1000, network_configure_timeout,
+	NULL);
 
 	return TRUE;
 }

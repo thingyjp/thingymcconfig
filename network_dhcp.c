@@ -7,6 +7,10 @@
 static struct dhcp4_client_cntx* dhcp4clientcntx;
 static GPid dhcpdpid;
 
+void _dhcp4_client_clearinterface(unsigned ifidx) {
+	network_rtnetlink_clearipv4addr(ifidx);
+}
+
 void _dhcp4_client_configureinterface(unsigned ifidx, const guint8* address,
 		const guint8* netmask, const guint8* gateway, const guint8* nameservers,
 		const guint8 numnameservers) {
@@ -22,6 +26,8 @@ void _dhcp4_client_configureinterface(unsigned ifidx, const guint8* address,
 	gchar* addrstr = g_string_free(addrgstr, FALSE);
 	network_rtnetlink_setipv4addr(ifidx, addrstr);
 	g_free(addrstr);
+
+	network_rtnetlink_setipv4defaultfw(ifidx, gateway);
 }
 
 void network_dhcpclient_start(unsigned ifidx, const gchar* interfacename,
@@ -39,8 +45,8 @@ void network_dhcpserver_start(const gchar* interfacename) {
 	g_message("starting dhcp server for %s", interfacename);
 	gchar* args[] = { DHCPD_BINARYPATH, "-f", interfacename, NULL };
 	if (!g_spawn_async(NULL, args, NULL,
-			G_SPAWN_STDOUT_TO_DEV_NULL | G_SPAWN_STDERR_TO_DEV_NULL, NULL, NULL,
-			&dhcpdpid, NULL)) {
+			G_SPAWN_STDOUT_TO_DEV_NULL | G_SPAWN_STDERR_TO_DEV_NULL, NULL,
+			NULL, &dhcpdpid, NULL)) {
 		g_message("failed to start dhcp server for %s", interfacename);
 	}
 }
@@ -50,7 +56,7 @@ void network_dhcpserver_stop() {
 }
 
 static gchar* dhcpcstatestrs[] = { [DHCP4CS_IDLE] = "idle", [DHCP4CS_DISCOVERING
-		] = "discovering", [DHCP4CS_REQUESTING] = "requesting",
+		] = "discovering", [DHCP4CS_REQUESTING ] = "requesting",
 		[DHCP4CS_CONFIGURED] = "configured" };
 
 static void network_dhcp_dumpstatus_addip4addr(JsonBuilder* builder,
