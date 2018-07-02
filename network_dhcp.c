@@ -2,10 +2,11 @@
 #include "network_dhcp.h"
 #include "network_rtnetlink.h"
 #include "dhcp4_client.h"
+#include "dhcp4_server.h"
 #include "ip4.h"
 
 static struct dhcp4_client_cntx* dhcp4clientcntx;
-static GPid dhcpdpid;
+static struct dhcp4_server_cntx* dhcp4servercntx;
 
 void _dhcp4_client_clearinterface(unsigned ifidx) {
 	network_rtnetlink_clearipv4addr(ifidx);
@@ -41,18 +42,15 @@ void network_dhcpclient_stop() {
 	dhcp4_client_stop(dhcp4clientcntx);
 }
 
-void network_dhcpserver_start(const gchar* interfacename) {
+void network_dhcpserver_start(unsigned ifidx, const gchar* interfacename,
+		const guint8* interfacemac) {
 	g_message("starting dhcp server for %s", interfacename);
-	gchar* args[] = { DHCPD_BINARYPATH, "-f", interfacename, NULL };
-	if (!g_spawn_async(NULL, args, NULL,
-			G_SPAWN_STDOUT_TO_DEV_NULL | G_SPAWN_STDERR_TO_DEV_NULL, NULL,
-			NULL, &dhcpdpid, NULL)) {
-		g_message("failed to start dhcp server for %s", interfacename);
-	}
+	dhcp4servercntx = dhcp4_server_new(ifidx, interfacemac);
+	dhcp4_server_start(dhcp4servercntx);
 }
 
 void network_dhcpserver_stop() {
-	g_spawn_close_pid(dhcpdpid);
+	dhcp4_server_stop(dhcp4servercntx);
 }
 
 static gchar* dhcpcstatestrs[] = { [DHCP4CS_IDLE] = "idle", [DHCP4CS_DISCOVERING

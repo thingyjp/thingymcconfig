@@ -76,10 +76,12 @@ certs.o: certs.c certs.h $(COMMONHEADERS)
 dhcp4_model.o: dhcp4_model.c dhcp4_model.h dhcp4.h
 	$(CC) $(CFLAGS) $(GLIB) -c -o $@ $<
 
-dhcp4_client.o: dhcp4_client.c dhcp4_client.h dhcp4_model.h dhcp4.h packetsocket.h ip4.h
+dhcp4_client.o: dhcp4_client.c dhcp4_client.h \
+	dhcp4_model.h dhcp4.h packetsocket.h ip4.h
 	$(CC) $(CFLAGS) $(GLIB) -c -o $@ $<
 
-dhcp4_server.o: dhcp4_server.c dhcp4_server.h
+dhcp4_server.o: dhcp4_server.c dhcp4_server.h \
+	dhcp4.h dhcp4_model.h packetsocket.h
 	$(CC) $(CFLAGS) $(GLIB) -c -o $@ $<
 	
 packetsocket.o: packetsocket.c packetsocket.h

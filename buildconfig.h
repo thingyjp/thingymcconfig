@@ -4,6 +4,7 @@
 #ifdef DEBUG
 #define NLDEBUG // debugging for netlink
 #define WSDEBUG // debugging for wpa_supplicant
+#define PSDEBUG // debugging for packetsocket
 #endif
 
 #ifndef WPASUPPLICANT_BINARYPATH

@@ -184,7 +184,8 @@ int network_startap() {
 			"reallysecurepassword",
 			WPASUPPLICANT_NETWORKMODE_AP);
 	network_wpasupplicant_selectnetwork(wpa_ctrl_ap, 0);
-	network_dhcpserver_start(apinterfacename);
+	network_dhcpserver_start(apinterface->ifidx, apinterfacename,
+			apinterface->mac);
 
 	err_startsupp:			//
 	return 0;

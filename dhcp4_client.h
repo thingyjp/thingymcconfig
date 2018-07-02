@@ -1,5 +1,6 @@
 #pragma once
 
+#include <net/ethernet.h>
 #include <glib.h>
 #include <gio/gio.h>
 #include "dhcp4.h"
@@ -23,7 +24,7 @@ struct dhcp4_client_lease {
 struct dhcp4_client_cntx {
 	enum dhcp4_clientstate state;
 	unsigned ifidx;
-	guint8 mac[6];
+	guint8 mac[ETHER_ADDR_LEN];
 
 	GRand* rand;
 	int rawsocket;

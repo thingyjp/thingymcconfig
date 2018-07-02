@@ -92,35 +92,50 @@ void packetsocket_send_udp(int rawsock, int ifindex, guint16 srcprt,
 		g_message("failed to send raw udp packet: %d", errno);
 }
 
-int packetsocket_recv_udp(int fd, int srcport, int destport, guint8* buff,
+gssize packetsocket_recv_udp(int fd, int srcport, int destport, guint8* buff,
 		gsize buffsz) {
 	guint8 rawbuff[1024];
 	int read = recv(fd, rawbuff, sizeof(rawbuff), 0);
-	if (read == -1) {
-		g_message("error while recv'ing from socket %d; %d", fd, errno);
+	if (read <= 0) {
+		switch (read) {
+		case 0:
+			break;
+		case 1:
+			g_message("error while recv'ing from socket %d; %d", fd, errno);
+			break;
+		}
 		return -1;
 	}
-
-	g_message("read %d from socket", read);
 
 	struct iphdr* iphdr = (struct iphdr*) rawbuff;
 	struct udphdr* udphdr = (struct udphdr*) (rawbuff + sizeof(*iphdr));
 	guint8* payload = rawbuff + sizeof(*iphdr) + sizeof(*udphdr);
 
 	if (iphdr->version != 4 || iphdr->protocol != IPPROTO_UDP) {
+#ifdef PSDEBUG
 		g_message("not an IPv4 UDP packet");
+#endif
 		return -1;
 	}
 
-	if (srcport != -1 && ntohs(udphdr->source) != srcport) {
+	int sport = ntohs(udphdr->source);
+	if (srcport != -1 && sport != srcport) {
+#ifdef PSDEBUG
+		g_message("ignoring udp packet from source port %d", sport);
+#endif
 		return -1;
 	}
 
-	if (destport != -1 && ntohs(udphdr->dest) != destport) {
+	int dport = ntohs(udphdr->dest);
+	if (destport != -1 && dport != destport) {
+#ifdef PSDEBUG
+		g_message("ignoring udp packet to dest port %d", dport);
+#endif
 		return -1;
 	}
 
-	g_message("have UDP packet");
+	g_message("read %d from socket, srcport %d, dstport %d", read,
+			(int )udphdr->source, (int ) udphdr->dest);
 	int payloadsize = ntohs(udphdr->len) - sizeof(*udphdr);
 	memcpy(buff, payload, payloadsize);
 	return payloadsize;

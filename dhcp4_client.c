@@ -129,13 +129,16 @@ static gboolean dhcp4_client_rawsocketcallback(GIOChannel *source,
 		GIOCondition condition, gpointer data) {
 	struct dhcp4_client_cntx* cntx = data;
 	guint8* udppkt = g_malloc(1024);
-	gsize udppktlen = packetsocket_recv_udp(cntx->rawsocket, DHCP4_PORT_SERVER,
+	gssize udppktlen = packetsocket_recv_udp(cntx->rawsocket, DHCP4_PORT_SERVER,
 	DHCP4_PORT_CLIENT, udppkt, 1024);
 
-	struct dhcp4_pktcntx* pktcntx = dhcp4_model_pkt_parse(udppkt, udppktlen);
-	if (pktcntx != NULL) {
-		dhcp4_client_processdhcppkt(cntx, pktcntx);
-		g_free(pktcntx);
+	if (udppktlen > 0) {
+		struct dhcp4_pktcntx* pktcntx = dhcp4_model_pkt_parse(udppkt,
+				udppktlen);
+		if (pktcntx != NULL) {
+			dhcp4_client_processdhcppkt(cntx, pktcntx);
+			g_free(pktcntx);
+		}
 	}
 	g_free(udppkt);
 	return TRUE;
