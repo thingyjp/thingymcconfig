@@ -109,6 +109,14 @@ gssize packetsocket_recv_udp(int fd, int srcport, int destport, guint8* buff,
 
 	struct iphdr* iphdr = (struct iphdr*) rawbuff;
 	struct udphdr* udphdr = (struct udphdr*) (rawbuff + sizeof(*iphdr));
+
+	if (read < (sizeof(*iphdr) + sizeof(*udphdr))) {
+#ifdef PSDEBUG
+		g_message("packet too short to contain ip + udp header");
+#endif
+		return -1;
+	}
+
 	guint8* payload = rawbuff + sizeof(*iphdr) + sizeof(*udphdr);
 
 	if (iphdr->version != 4 || iphdr->protocol != IPPROTO_UDP) {
@@ -134,8 +142,8 @@ gssize packetsocket_recv_udp(int fd, int srcport, int destport, guint8* buff,
 		return -1;
 	}
 
-	g_message("read %d from socket, srcport %d, dstport %d", read,
-			(int )udphdr->source, (int ) udphdr->dest);
+	g_message("read %d from socket, srcport %d, dstport %d", read, sport,
+			dport);
 	int payloadsize = ntohs(udphdr->len) - sizeof(*udphdr);
 	memcpy(buff, payload, payloadsize);
 	return payloadsize;
