@@ -10,13 +10,9 @@ static void dhcp4_client_changestate(struct dhcp4_client_cntx* cntx,
 struct dhcp4_client_cntx* dhcp4_client_new(unsigned ifidx, const guint8* mac) {
 	struct dhcp4_client_cntx* cntx = g_malloc0(
 			sizeof(struct dhcp4_client_cntx));
-
 	cntx->ifidx = ifidx;
 	memcpy(cntx->mac, mac, sizeof(cntx->mac));
 	cntx->rand = g_rand_new();
-
-	cntx->rawsocket = packetsocket_createsocket_udp(ifidx, mac);
-	g_assert(cntx->rawsocket);
 	return cntx;
 }
 
@@ -87,34 +83,6 @@ static gboolean dhcp4_client_leasetimeout(gpointer data) {
 	return FALSE;
 }
 
-static void dhcp4_client_changestate(struct dhcp4_client_cntx* cntx,
-		enum dhcp4_clientstate newstate) {
-	g_message("moving from state %d to %d", cntx->state, newstate);
-
-	cntx->state = newstate;
-	switch (cntx->state) {
-	case DHCP4CS_DISCOVERING:
-		dhcp4_client_send_discover(cntx);
-		g_timeout_add(10 * 1000, dhcp4_client_discoverytimeout, cntx);
-		break;
-	case DHCP4CS_REQUESTING:
-		dhcp4_client_send_request(cntx);
-		g_timeout_add(10 * 1000, dhcp4_client_requesttimeout, cntx);
-		break;
-	case DHCP4CS_CONFIGURED:
-		cntx->currentlease = cntx->pendinglease;
-		cntx->pendinglease = NULL;
-		_dhcp4_client_configureinterface(cntx->ifidx,
-				cntx->currentlease->leasedip, cntx->currentlease->subnetmask,
-				cntx->currentlease->defaultgw,
-				(guint8*) cntx->currentlease->nameservers,
-				cntx->currentlease->numnameservers);
-		g_timeout_add(cntx->currentlease->leasetime * 1000,
-				dhcp4_client_leasetimeout, cntx);
-		break;
-	}
-}
-
 static void dhcp4_client_processdhcppkt(struct dhcp4_client_cntx* cntx,
 		struct dhcp4_pktcntx* pktcntx) {
 	if (pktcntx->header->xid == cntx->xid) {
@@ -173,10 +141,45 @@ static gboolean dhcp4_client_rawsocketcallback(GIOChannel *source,
 	return TRUE;
 }
 
-void dhcp4_client_start(struct dhcp4_client_cntx* cntx) {
-	GIOChannel* channel = g_io_channel_unix_new(cntx->rawsocket);
-	g_io_add_watch(channel, G_IO_IN, dhcp4_client_rawsocketcallback, cntx);
+static void dhcp4_client_changestate(struct dhcp4_client_cntx* cntx,
+		enum dhcp4_clientstate newstate) {
+	g_message("moving from state %d to %d", cntx->state, newstate);
 
+	cntx->state = newstate;
+	switch (cntx->state) {
+	case DHCP4CS_DISCOVERING:
+		cntx->rawsocket = packetsocket_createsocket_udp(cntx->ifidx, cntx->mac);
+		g_assert(cntx->rawsocket);
+		GIOChannel* channel = g_io_channel_unix_new(cntx->rawsocket);
+		cntx->rawsocketeventsource = g_io_add_watch(channel, G_IO_IN,
+				dhcp4_client_rawsocketcallback, cntx);
+		g_io_channel_unref(channel);
+		dhcp4_client_send_discover(cntx);
+		g_timeout_add(10 * 1000, dhcp4_client_discoverytimeout, cntx);
+		break;
+	case DHCP4CS_REQUESTING:
+		dhcp4_client_send_request(cntx);
+		g_timeout_add(10 * 1000, dhcp4_client_requesttimeout, cntx);
+		break;
+	case DHCP4CS_CONFIGURED:
+		g_source_remove(cntx->rawsocketeventsource);
+		cntx->rawsocketeventsource = -1;
+		close(cntx->rawsocket);
+		cntx->rawsocket = -1;
+		cntx->currentlease = cntx->pendinglease;
+		cntx->pendinglease = NULL;
+		_dhcp4_client_configureinterface(cntx->ifidx,
+				cntx->currentlease->leasedip, cntx->currentlease->subnetmask,
+				cntx->currentlease->defaultgw,
+				(guint8*) cntx->currentlease->nameservers,
+				cntx->currentlease->numnameservers);
+		g_timeout_add(cntx->currentlease->leasetime * 1000,
+				dhcp4_client_leasetimeout, cntx);
+		break;
+	}
+}
+
+void dhcp4_client_start(struct dhcp4_client_cntx* cntx) {
 	dhcp4_client_changestate(cntx, DHCP4CS_DISCOVERING);
 }
 

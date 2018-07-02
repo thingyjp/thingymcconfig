@@ -27,6 +27,8 @@ struct dhcp4_client_cntx {
 
 	GRand* rand;
 	int rawsocket;
+	guint rawsocketeventsource;
+
 	guint32 xid;
 	struct dhcp4_client_lease* pendinglease;
 	struct dhcp4_client_lease* currentlease;
