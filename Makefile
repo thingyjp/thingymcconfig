@@ -58,7 +58,8 @@ network_rtnetlink.o: network_rtnetlink.c network_rtnetlink.h network_priv.h $(CO
 network_wpasupplicant.o: network_wpasupplicant.c network_wpasupplicant.h network_wpasupplicant_priv.h $(COMMONHEADERS)
 	$(CC) $(CFLAGS) $(GLIBJSON) $(HOSTAPD) -c -o $@ $<
 
-network_dhcp.o: network_dhcp.c network_dhcp.h dhcp4_client.h ip4.h $(COMMONHEADERS)
+network_dhcp.o: network_dhcp.c network_dhcp.h \
+	dhcp4_client.h dhcp4_server.h ip4.h $(COMMONHEADERS)
 	$(CC) $(CFLAGS) $(GLIBJSON) -c -o $@ $<
 
 network_model.o: network_model.c network_model.h $(COMMONHEADERS)

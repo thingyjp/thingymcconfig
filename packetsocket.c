@@ -23,7 +23,7 @@ static unsigned short packetsocket_ipcsum(guint16 *data, gsize len) {
 }
 
 int packetsocket_createsocket_udp(int ifindex, const guint8* mac) {
-	int sock = socket(PF_PACKET, SOCK_DGRAM, htons(ETH_P_IP));
+	int sock = socket(PF_PACKET, SOCK_DGRAM | SOCK_NONBLOCK, htons(ETH_P_IP));
 
 	struct sockaddr_ll addr;
 	memset(&addr, 0, sizeof(addr));
@@ -126,6 +126,14 @@ gssize packetsocket_recv_udp(int fd, int srcport, int destport, guint8* buff,
 		return -1;
 	}
 
+	int payloadsize = ntohs(udphdr->len) - sizeof(*udphdr);
+	if (read != payloadsize + sizeof(*iphdr) + sizeof(*udphdr)) {
+#ifdef PSDEBUG
+		g_message("truncated payload");
+#endif
+		return -1;
+	}
+
 	int sport = ntohs(udphdr->source);
 	if (srcport != -1 && sport != srcport) {
 #ifdef PSDEBUG
@@ -142,9 +150,11 @@ gssize packetsocket_recv_udp(int fd, int srcport, int destport, guint8* buff,
 		return -1;
 	}
 
+#ifdef PSDEBUG
 	g_message("read %d from socket, srcport %d, dstport %d", read, sport,
 			dport);
-	int payloadsize = ntohs(udphdr->len) - sizeof(*udphdr);
+#endif
+
 	memcpy(buff, payload, payloadsize);
 	return payloadsize;
 }
