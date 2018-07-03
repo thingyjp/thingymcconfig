@@ -5,8 +5,11 @@ a Linux based IoT device.
 ## Requirements
 
 ### Software
+* glib
+* glib-json
 * libmicrohttpd with TLS enabled
-* ISC dhcpd
+* libnl-route
+* libnl-genl
 * wpasupplicant
 
 For buildroot an external package can be found [here](https://github.com/thingyjp/thingymcconfig-buildroot)
@@ -16,16 +19,37 @@ On Debian or similar you need these packages
 ```libmicrohttpd-dev libnl-route-3-dev libnl-genl-3-dev libjson-glib-dev```
  
 ### Hardware:
-wifi interface that supports NL80211 and supports a station VIF 
+wifi interface that supports NL80211 and supports a station VIF(virtual interface) 
 and an access point VIF simultaneously. This is apparently less
 common than you might think. 
+
+To check run:
+
+```
+iw list
+```
+
+Then look for a section that resembles the example below.
+You need a line that shows you can have one or more managed VIFs
+and one or more AP VIFs at the same time.
+In the example you can see the second combination allows for
+1 managed VIF and 1 AP VIF.
+
+
+```
+        valid interface combinations:
+                 * #{ managed } <= 1, #{ P2P-device } <= 1, #{ P2P-client, P2P-GO } <= 1,
+                   total <= 3, #channels <= 1
+                 * #{ managed } <= 1, #{ AP } <= 1, #{ P2P-client } <= 1, #{ P2P-device } <= 1,
+                   total <= 4, #channels <= 1
+```
 
 ### Chipsets/Drivers that should work
 #### Broadcom BCM43143/brcmfmac
 Only tested the usb version so far (RaspberryPi official usb dongle).
-#### Marvell 88w8897/mwifiex
-Only tested the pci-e version so far but station and ap interfaces
-come up and operate.
+#### Marvell 88w8801,88w8897/mwifiex
+Only tested the usb version of the 88w8801 and the pci-e version of 88w8897
+so far. Station and AP come up and operate correctly.
  
 ### Chipsets/Drivers that will not work (yet)
 #### Realtek rtl8188eu and variants
