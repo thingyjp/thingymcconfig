@@ -7,19 +7,31 @@
 #include <errno.h>
 #include "packetsocket.h"
 
-static unsigned short packetsocket_ipcsum(guint16 *data, gsize len) {
-	unsigned long sum = 0;
+struct __attribute__((__packed__)) udppseudohdr {
+	guint32 sa;
+	guint32 da;
+	guint8 pad;
+	guint8 proto;
+	guint16 len;
+};
 
-	for (int i = 0; i < len; i += 2)
-		sum += ntohs(*data++);
+static unsigned long packetsocket_ipcsum_next(unsigned long sum, guint16 *data,
+		gsize len) {
+	for (int i = 0; i < len; i += 2) {
+		//TODO add option to pad
+		guint16 v = *data++;
+		sum += v;
+	}
+	return sum;
+}
 
+static unsigned short packetsocket_ipcsum_finalise(unsigned long sum) {
 	unsigned long carry = sum >> 16;
 	while (carry != 0) {
 		sum = (sum & 0xffff) + carry;
 		carry = sum >> 16;
 	}
-
-	return htons(~sum);
+	return ~sum;
 }
 
 int packetsocket_createsocket_udp(int ifindex, const guint8* mac) {
@@ -71,7 +83,20 @@ void packetsocket_send_udp(int rawsock, int ifindex, guint16 srcprt,
 	iphdr.protocol = IPPROTO_UDP;
 	iphdr.tot_len = htons(sizeof(udphdr) + sizeof(iphdr) + payloadlen);
 	iphdr.daddr = 0xffffffff;
-	iphdr.check = packetsocket_ipcsum((guint16*) &iphdr, sizeof(iphdr));
+	unsigned long checksum = 0;
+	checksum = packetsocket_ipcsum_next(checksum, (guint16*) &iphdr,
+			sizeof(iphdr));
+	iphdr.check = packetsocket_ipcsum_finalise(checksum);
+
+	unsigned long udpchecksum = 0;
+	struct udppseudohdr pseudohdr = { .sa = iphdr.saddr, .da = iphdr.daddr,
+			.pad = 0, .proto = iphdr.protocol, .len = udphdr.len };
+	udpchecksum = packetsocket_ipcsum_next(udpchecksum, &pseudohdr,
+			sizeof(pseudohdr));
+	udpchecksum = packetsocket_ipcsum_next(udpchecksum, &udphdr,
+			sizeof(udphdr));
+	udpchecksum = packetsocket_ipcsum_next(udpchecksum, payload, payloadlen);
+	udphdr.check = packetsocket_ipcsum_finalise(udpchecksum);
 
 	struct iovec parts[3];
 	parts[0].iov_base = &iphdr;
