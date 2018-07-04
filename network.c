@@ -170,6 +170,10 @@ int network_stop() {
 	return 0;
 }
 
+static const gchar thingyidstr[] = "thingymcconfig:0";
+static const struct network_wpasupplicant_ie ies[] = { { .id = 0xDD, .payload =
+		thingyidstr, .payloadlen = sizeof(thingyidstr) - 1 } };
+
 int network_startap() {
 	if (noapinterface)
 		return 0;
@@ -180,6 +184,7 @@ int network_startap() {
 			apinterfacename, &apsupplicantpid))
 		goto err_startsupp;
 
+	network_wpasupplicant_seties(wpa_ctrl_ap, ies, G_N_ELEMENTS(ies));
 	network_wpasupplicant_addnetwork(wpa_ctrl_ap, "mythingy",
 			"reallysecurepassword",
 			WPASUPPLICANT_NETWORKMODE_AP);

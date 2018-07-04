@@ -15,9 +15,17 @@
 #define FLAG_WPA2_PSK_CCMP "WPA2-PSK-CCMP"
 #define FLAG_WPA2_PSK_CCMP_TKIP "WPA2-PSK-CCMP+TKIP"
 
+struct network_wpasupplicant_ie {
+	guint8 id;
+	const guint8* payload;
+	guint8 payloadlen;
+};
+
 void network_wpasupplicant_init(void);
 gboolean network_wpasupplicant_start(struct wpa_ctrl** wpa_ctrl,
 		struct wpa_ctrl** wpa_event, const char* interface, GPid* pid);
+void network_wpasupplicant_seties(struct wpa_ctrl* wpa_ctrl,
+		const struct network_wpasupplicant_ie* ies, unsigned numies);
 void network_wpasupplicant_scan(struct wpa_ctrl* wpa_ctrl);
 int network_wpasupplicant_addnetwork(struct wpa_ctrl* wpa_ctrl,
 		const gchar* ssid, const gchar* psk, unsigned mode);

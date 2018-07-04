@@ -233,6 +233,27 @@ static gboolean network_wpasupplicant_onevent(GIOChannel *source,
 	return TRUE;
 }
 
+void network_wpasupplicant_seties(struct wpa_ctrl* wpa_ctrl,
+		const struct network_wpasupplicant_ie* ies, unsigned numies) {
+	if (numies > 0) {
+		GString* iedatastr = g_string_new("SET ap_vendor_elements ");
+		for (int i = 0; i < numies; i++) {
+			g_string_append_printf(iedatastr, "%02x%02x", (unsigned) ies->id,
+					(unsigned) ies->payloadlen);
+			guint8* payload = ies->payload;
+			for (int j = 0; j < ies->payloadlen; j++) {
+				g_string_append_printf(iedatastr, "%02x",
+						(unsigned) *payload++);
+			}
+			ies++;
+		}
+		gchar* iedatacmd = g_string_free(iedatastr, FALSE);
+		gsize replylen;
+		network_wpasupplicant_docommand(wpa_ctrl, &replylen, TRUE, iedatacmd);
+		g_free(iedatacmd);
+	}
+}
+
 void network_wpasupplicant_scan(struct wpa_ctrl* wpa_ctrl) {
 	size_t replylen;
 	char* reply = network_wpasupplicant_docommand(wpa_ctrl, &replylen, TRUE,
