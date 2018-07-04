@@ -44,16 +44,21 @@ static struct dhcp4_server_lease* dhcp4_server_lease_new(
 	return NULL;
 }
 
-static void dhcp4_server_send_offer(struct dhcp4_server_cntx* cntx, guint32 xid,
-		struct dhcp4_server_lease* lease) {
-	struct dhcp4_pktcntx* pkt = dhcp4_model_pkt_new();
-	dhcp4_model_fillheader(TRUE, pkt->header, xid, lease->address, NULL);
-	dhcp4_model_pkt_set_dhcpmessagetype(pkt, DHCP4_DHCPMESSAGETYPE_OFFER);
+static void dhcp4_server_fillinleaseoptions(struct dhcp4_server_cntx* cntx,
+		struct dhcp4_pktcntx* pkt) {
 	dhcp4_model_pkt_set_subnetmask(pkt, cntx->subnetmask);
 	dhcp4_model_pkt_set_defaultgw(pkt, cntx->defaultgw);
 	dhcp4_model_pkt_set_leasetime(pkt, 7200);
 	dhcp4_model_pkt_set_domainnameservers(pkt, NULL, 1);
 	dhcp4_model_pkt_set_serverid(pkt, cntx->serverid);
+}
+
+static void dhcp4_server_send_offer(struct dhcp4_server_cntx* cntx, guint32 xid,
+		struct dhcp4_server_lease* lease) {
+	struct dhcp4_pktcntx* pkt = dhcp4_model_pkt_new();
+	dhcp4_model_fillheader(TRUE, pkt->header, xid, lease->address, NULL);
+	dhcp4_model_pkt_set_dhcpmessagetype(pkt, DHCP4_DHCPMESSAGETYPE_OFFER);
+	dhcp4_server_fillinleaseoptions(cntx, pkt);
 	gsize pktsz;
 	guint8* pktbytes = dhcp4_model_pkt_freetobytes(pkt, &pktsz);
 	packetsocket_send_udp(cntx->packetsocket, cntx->ifidx, DHCP4_PORT_SERVER,
@@ -66,6 +71,7 @@ static void dhcp4_server_send_ack(struct dhcp4_server_cntx* cntx, guint32 xid,
 	struct dhcp4_pktcntx* pkt = dhcp4_model_pkt_new();
 	dhcp4_model_fillheader(TRUE, pkt->header, xid, lease->address, NULL);
 	dhcp4_model_pkt_set_dhcpmessagetype(pkt, DHCP4_DHCPMESSAGETYPE_ACK);
+	dhcp4_server_fillinleaseoptions(cntx, pkt);
 	gsize pktsz;
 	guint8* pktbytes = dhcp4_model_pkt_freetobytes(pkt, &pktsz);
 	packetsocket_send_udp(cntx->packetsocket, cntx->ifidx, DHCP4_PORT_SERVER,

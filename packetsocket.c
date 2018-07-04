@@ -5,6 +5,7 @@
 #include <netinet/ip.h>
 #include <netinet/udp.h>
 #include <errno.h>
+#include "buildconfig.h"
 #include "packetsocket.h"
 
 struct __attribute__((__packed__)) udppseudohdr {
@@ -41,13 +42,17 @@ int packetsocket_createsocket_udp(int ifindex, const guint8* mac) {
 	memset(&addr, 0, sizeof(addr));
 	addr.sll_family = AF_PACKET;
 	addr.sll_ifindex = ifindex;
-	addr.sll_halen = ETHER_ADDR_LEN;
-	addr.sll_protocol = htons(ETH_P_IP);
+	//addr.sll_protocol = htons(ETH_P_IP);
 	memcpy(addr.sll_addr, mac, ETHER_ADDR_LEN);
 
+#ifndef PSNOBIND
 	if (bind(sock, (struct sockaddr*) &addr, sizeof(addr)) == -1) {
 		g_message("failed to bind socket; %d", errno);
 	}
+#endif
+
+	int recvbuffsz = 32 * 1024;
+	setsockopt(socket, SOL_SOCKET, SO_RCVBUF, &recvbuffsz, sizeof(recvbuffsz));
 
 	g_message("created raw socket %d", sock);
 	return sock;
@@ -56,8 +61,10 @@ int packetsocket_createsocket_udp(int ifindex, const guint8* mac) {
 void packetsocket_send_udp(int rawsock, int ifindex, guint16 srcprt,
 		guint16 dstprt, guint8* payload, gsize payloadlen) {
 
+#ifdef PSDEBUG
 	g_message("sending raw %d byte udp packet from %d to %d using interface %d",
 			payloadlen, (int ) srcprt, (int ) dstprt, (int ) ifindex);
+#endif
 
 	const guint8 broadcast[] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
@@ -91,11 +98,12 @@ void packetsocket_send_udp(int rawsock, int ifindex, guint16 srcprt,
 	unsigned long udpchecksum = 0;
 	struct udppseudohdr pseudohdr = { .sa = iphdr.saddr, .da = iphdr.daddr,
 			.pad = 0, .proto = iphdr.protocol, .len = udphdr.len };
-	udpchecksum = packetsocket_ipcsum_next(udpchecksum, &pseudohdr,
+	udpchecksum = packetsocket_ipcsum_next(udpchecksum, (guint16*) &pseudohdr,
 			sizeof(pseudohdr));
-	udpchecksum = packetsocket_ipcsum_next(udpchecksum, &udphdr,
+	udpchecksum = packetsocket_ipcsum_next(udpchecksum, (guint16*) &udphdr,
 			sizeof(udphdr));
-	udpchecksum = packetsocket_ipcsum_next(udpchecksum, payload, payloadlen);
+	udpchecksum = packetsocket_ipcsum_next(udpchecksum, (guint16*) payload,
+			payloadlen);
 	udphdr.check = packetsocket_ipcsum_finalise(udpchecksum);
 
 	struct iovec parts[3];
@@ -124,9 +132,14 @@ gssize packetsocket_recv_udp(int fd, int srcport, int destport, guint8* buff,
 	if (read <= 0) {
 		switch (read) {
 		case 0:
+#ifdef PSDEBUG
+			g_message("0");
+#endif
 			break;
 		case 1:
+#ifdef PSDEBUG
 			g_message("error while recv'ing from socket %d; %d", fd, errno);
+#endif
 			break;
 		}
 		return -1;
@@ -146,15 +159,18 @@ gssize packetsocket_recv_udp(int fd, int srcport, int destport, guint8* buff,
 
 	if (iphdr->version != 4 || iphdr->protocol != IPPROTO_UDP) {
 #ifdef PSDEBUG
-		g_message("not an IPv4 UDP packet");
+		g_message("not an IPv4 UDP packet; version %d, proto %d",
+				(int ) iphdr->version, (int ) iphdr->protocol);
 #endif
 		return -1;
 	}
 
 	int payloadsize = ntohs(udphdr->len) - sizeof(*udphdr);
-	if (read != payloadsize + sizeof(*iphdr) + sizeof(*udphdr)) {
+	int remainingpkt = read - (sizeof(*iphdr) + sizeof(*udphdr));
+	if (payloadsize > remainingpkt) {
 #ifdef PSDEBUG
-		g_message("truncated payload");
+		g_message("truncated payload; udp header says %d but only have %d left",
+				payloadsize, remainingpkt);
 #endif
 		return -1;
 	}
