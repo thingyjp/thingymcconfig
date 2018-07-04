@@ -52,14 +52,14 @@ int packetsocket_createsocket_udp(int ifindex, const guint8* mac) {
 #endif
 
 	int recvbuffsz = 32 * 1024;
-	setsockopt(socket, SOL_SOCKET, SO_RCVBUF, &recvbuffsz, sizeof(recvbuffsz));
+	setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &recvbuffsz, sizeof(recvbuffsz));
 
 	g_message("created raw socket %d", sock);
 	return sock;
 }
 
-void packetsocket_send_udp(int rawsock, int ifindex, guint16 srcprt,
-		guint16 dstprt, guint8* payload, gsize payloadlen) {
+void packetsocket_send_udp(int rawsock, int ifindex, guint32 srcaddr,
+		guint16 srcprt, guint16 dstprt, guint8* payload, gsize payloadlen) {
 
 #ifdef PSDEBUG
 	g_message("sending raw %d byte udp packet from %d to %d using interface %d",
@@ -89,6 +89,7 @@ void packetsocket_send_udp(int rawsock, int ifindex, guint16 srcprt,
 	iphdr.ttl = 0xff;
 	iphdr.protocol = IPPROTO_UDP;
 	iphdr.tot_len = htons(sizeof(udphdr) + sizeof(iphdr) + payloadlen);
+	iphdr.saddr = srcaddr;
 	iphdr.daddr = 0xffffffff;
 	unsigned long checksum = 0;
 	checksum = packetsocket_ipcsum_next(checksum, (guint16*) &iphdr,

@@ -231,7 +231,7 @@ guint8* dhcp4_model_pkt_freetobytes(struct dhcp4_pktcntx* pktcntx, gsize* sz) {
 }
 
 void dhcp4_model_fillheader(gboolean reply, struct dhcp4_header* header,
-		guint32 xid, guint8* yiaddr, guint8* mac) {
+		guint32 xid, guint8* yiaddr, guint8* siaddr, guint8* mac) {
 	memset(header, 0, sizeof(*header));
 	header->op = reply ? 2 : 1;
 	header->htype = 1;
@@ -241,6 +241,10 @@ void dhcp4_model_fillheader(gboolean reply, struct dhcp4_header* header,
 
 	if (yiaddr != NULL)
 		memcpy(header->yiaddr, yiaddr, sizeof(header->yiaddr));
+
+	if (siaddr != NULL)
+		memcpy(header->siaddr, siaddr, sizeof(header->siaddr));
+
 	if (mac != NULL)
 		memcpy(header->chaddr, mac, ETHER_ADDR_LEN);
 }

@@ -56,26 +56,30 @@ static void dhcp4_server_fillinleaseoptions(struct dhcp4_server_cntx* cntx,
 static void dhcp4_server_send_offer(struct dhcp4_server_cntx* cntx, guint32 xid,
 		struct dhcp4_server_lease* lease) {
 	struct dhcp4_pktcntx* pkt = dhcp4_model_pkt_new();
-	dhcp4_model_fillheader(TRUE, pkt->header, xid, lease->address, NULL);
+	dhcp4_model_fillheader(TRUE, pkt->header, xid, lease->address,
+			cntx->serverid, lease->mac);
 	dhcp4_model_pkt_set_dhcpmessagetype(pkt, DHCP4_DHCPMESSAGETYPE_OFFER);
 	dhcp4_server_fillinleaseoptions(cntx, pkt);
 	gsize pktsz;
 	guint8* pktbytes = dhcp4_model_pkt_freetobytes(pkt, &pktsz);
-	packetsocket_send_udp(cntx->packetsocket, cntx->ifidx, DHCP4_PORT_SERVER,
-	DHCP4_PORT_CLIENT, pktbytes, pktsz);
+	packetsocket_send_udp(cntx->packetsocket, cntx->ifidx,
+			*((guint32*) cntx->serverid), DHCP4_PORT_SERVER,
+			DHCP4_PORT_CLIENT, pktbytes, pktsz);
 	g_free(pktbytes);
 }
 
 static void dhcp4_server_send_ack(struct dhcp4_server_cntx* cntx, guint32 xid,
 		struct dhcp4_server_lease* lease) {
 	struct dhcp4_pktcntx* pkt = dhcp4_model_pkt_new();
-	dhcp4_model_fillheader(TRUE, pkt->header, xid, lease->address, NULL);
+	dhcp4_model_fillheader(TRUE, pkt->header, xid, lease->address,
+			cntx->serverid, lease->mac);
 	dhcp4_model_pkt_set_dhcpmessagetype(pkt, DHCP4_DHCPMESSAGETYPE_ACK);
 	dhcp4_server_fillinleaseoptions(cntx, pkt);
 	gsize pktsz;
 	guint8* pktbytes = dhcp4_model_pkt_freetobytes(pkt, &pktsz);
-	packetsocket_send_udp(cntx->packetsocket, cntx->ifidx, DHCP4_PORT_SERVER,
-	DHCP4_PORT_CLIENT, pktbytes, pktsz);
+	packetsocket_send_udp(cntx->packetsocket, cntx->ifidx,
+			*((guint32*) cntx->serverid), DHCP4_PORT_SERVER,
+			DHCP4_PORT_CLIENT, pktbytes, pktsz);
 	g_free(pktbytes);
 }
 
@@ -92,7 +96,7 @@ static void dhcp4_server_processdhcppkt(struct dhcp4_server_cntx* cntx,
 		struct dhcp4_pktcntx* pktcntx) {
 
 	guint8 dhcpmessagetype = dhcp4_model_pkt_get_dhcpmessagetype(pktcntx);
-	g_message("dhcp type %d", (int ) dhcpmessagetype);
+	g_message("dhcp type %s", DHCP4_MESSAGETYPE_STRINGS[dhcpmessagetype]);
 
 	switch (dhcpmessagetype) {
 	case DHCP4_DHCPMESSAGETYPE_DISCOVER: {
@@ -115,8 +119,10 @@ static void dhcp4_server_processdhcppkt(struct dhcp4_server_cntx* cntx,
 		break;
 	case DHCP4_DHCPMESSAGETYPE_REQUEST: {
 		g_message("dhcp request from "MACFMT, MACARG(pktcntx->header->chaddr));
-		struct dhcp4_server_lease* lease = g_slist_find_custom(cntx->leases,
+		GSList* leaselink = g_slist_find_custom(cntx->leases,
 				pktcntx->header->chaddr, dhcp4_server_leasebymac);
+		struct dhcp4_server_lease* lease =
+				leaselink != NULL ? leaselink->data : NULL;
 		if (lease != NULL)
 			dhcp4_server_send_ack(cntx, pktcntx->header->xid, lease);
 	}

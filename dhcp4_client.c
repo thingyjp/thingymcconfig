@@ -19,11 +19,12 @@ struct dhcp4_client_cntx* dhcp4_client_new(unsigned ifidx, const guint8* mac) {
 static void dhcp4_client_send_discover(struct dhcp4_client_cntx* cntx) {
 	cntx->xid = g_rand_int(cntx->rand);
 	struct dhcp4_pktcntx* pkt = dhcp4_model_pkt_new();
-	dhcp4_model_fillheader(FALSE, pkt->header, cntx->xid, NULL, cntx->mac);
+	dhcp4_model_fillheader(FALSE, pkt->header, cntx->xid, NULL, NULL,
+			cntx->mac);
 	dhcp4_model_pkt_set_dhcpmessagetype(pkt, DHCP4_DHCPMESSAGETYPE_DISCOVER);
 	gsize pktsz;
 	guint8* pktbytes = dhcp4_model_pkt_freetobytes(pkt, &pktsz);
-	packetsocket_send_udp(cntx->rawsocket, cntx->ifidx, DHCP4_PORT_CLIENT,
+	packetsocket_send_udp(cntx->rawsocket, cntx->ifidx, 0, DHCP4_PORT_CLIENT,
 	DHCP4_PORT_SERVER, pktbytes, pktsz);
 	g_free(pktbytes);
 }
@@ -40,13 +41,14 @@ static gboolean dhcp4_client_discoverytimeout(gpointer data) {
 
 static void dhcp4_client_send_request(struct dhcp4_client_cntx* cntx) {
 	struct dhcp4_pktcntx* pkt = dhcp4_model_pkt_new();
-	dhcp4_model_fillheader(FALSE, pkt->header, cntx->xid, NULL, cntx->mac);
+	dhcp4_model_fillheader(FALSE, pkt->header, cntx->xid, NULL, NULL,
+			cntx->mac);
 	dhcp4_model_pkt_set_dhcpmessagetype(pkt, DHCP4_DHCPMESSAGETYPE_REQUEST);
 	dhcp4_model_pkt_set_serverid(pkt, cntx->pendinglease->serverip);
 	dhcp4_model_pkt_set_requestedip(pkt, cntx->pendinglease->leasedip);
 	gsize pktsz;
 	guint8* pktbytes = dhcp4_model_pkt_freetobytes(pkt, &pktsz);
-	packetsocket_send_udp(cntx->rawsocket, cntx->ifidx, DHCP4_PORT_CLIENT,
+	packetsocket_send_udp(cntx->rawsocket, cntx->ifidx, 0, DHCP4_PORT_CLIENT,
 	DHCP4_PORT_SERVER, pktbytes, pktsz);
 	g_free(pktbytes);
 }

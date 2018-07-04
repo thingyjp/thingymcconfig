@@ -59,4 +59,4 @@ gboolean dhcp4_model_pkt_get_domainnameservers(struct dhcp4_pktcntx* pktcntx,
 guint8* dhcp4_model_pkt_freetobytes(struct dhcp4_pktcntx* pktcntx, gsize* sz);
 
 void dhcp4_model_fillheader(gboolean reply, struct dhcp4_header* header,
-		guint32 xid, guint8* yiaddr, guint8* mac);
+		guint32 xid, guint8* yiaddr, guint8* siaddr, guint8* mac);
