@@ -174,9 +174,14 @@ static const gchar thingyidstr[] = "thingymcconfig:0";
 static const struct network_wpasupplicant_ie ies[] = { { .id = 0xDD, .payload =
 		thingyidstr, .payloadlen = sizeof(thingyidstr) - 1 } };
 
-int network_startap() {
+int network_startap(const gchar* nameprefix) {
 	if (noapinterface)
 		return 0;
+
+	GString* namestr = g_string_new(nameprefix);
+	g_string_append_printf(namestr, "_%02x%02x%02x", apinterface->mac[3],
+			apinterface->mac[4], apinterface->mac[5]);
+	gchar* name = g_string_free(namestr, FALSE);
 
 	network_rtnetlink_clearipv4addr(apinterface->ifidx);
 	network_rtnetlink_setipv4addr(apinterface->ifidx, "10.0.0.1/30");
@@ -185,9 +190,8 @@ int network_startap() {
 		goto err_startsupp;
 
 	network_wpasupplicant_seties(wpa_ctrl_ap, ies, G_N_ELEMENTS(ies));
-	network_wpasupplicant_addnetwork(wpa_ctrl_ap, "mythingy",
-			"reallysecurepassword",
-			WPASUPPLICANT_NETWORKMODE_AP);
+	network_wpasupplicant_addnetwork(wpa_ctrl_ap, name, "reallysecurepassword",
+	WPASUPPLICANT_NETWORKMODE_AP);
 	network_wpasupplicant_selectnetwork(wpa_ctrl_ap, 0);
 	network_dhcpserver_start(apinterface->ifidx, apinterfacename,
 			apinterface->mac);

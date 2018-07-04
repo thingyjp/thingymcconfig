@@ -15,6 +15,7 @@ gboolean siginthandler(gpointer user_data) {
 
 int main(int argc, char** argv) {
 
+	gchar* nameprefix = "thingy";
 	gchar* interface = NULL;
 	gboolean waitforinterface = FALSE;
 	gboolean noap = FALSE;
@@ -24,7 +25,10 @@ int main(int argc, char** argv) {
 
 	GError* error = NULL;
 	GOptionEntry entries[] = {
-	// networking stuff
+	// ?display? stuff
+			{ "nameprefix", 'n', 0, G_OPTION_ARG_STRING, &nameprefix,
+					"name prefix", NULL },
+			// networking stuff
 			{ "interface", 'i', 0, G_OPTION_ARG_STRING, &interface, "interface",
 			NULL }, { "waitforinterface", 'w', 0, G_OPTION_ARG_NONE,
 					&waitforinterface, "wait for interface to appear", NULL },
@@ -82,7 +86,7 @@ int main(int argc, char** argv) {
 	}
 
 	//todo should only be called when entering provisioning mode
-	network_startap();
+	network_startap(nameprefix);
 
 	g_unix_signal_add(SIGINT, siginthandler, NULL);
 	g_main_loop_run(mainloop);
