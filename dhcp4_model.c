@@ -242,6 +242,6 @@ void dhcp4_model_fillheader(gboolean reply, struct dhcp4_header* header,
 	if (yiaddr != NULL)
 		memcpy(header->yiaddr, yiaddr, sizeof(header->yiaddr));
 	if (mac != NULL)
-		memcpy(header->chaddr, mac, sizeof(ETHER_ADDR_LEN));
+		memcpy(header->chaddr, mac, ETHER_ADDR_LEN);
 }
 
