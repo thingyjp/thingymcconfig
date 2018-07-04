@@ -6,7 +6,9 @@
 
 struct dhcp4_server_lease {
 	guint8 mac[ETHER_ADDR_LEN];
-	guint8 address[DHCP4_ADDRESS_LEN];
+	GSList* address;
+	gint64 leasedat;
+	gint32 leasetime;
 };
 
 struct dhcp4_server_cntx {
