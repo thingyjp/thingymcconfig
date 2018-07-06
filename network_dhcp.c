@@ -46,8 +46,8 @@ void network_dhcpserver_start(unsigned ifidx, const gchar* interfacename,
 		const guint8* interfacemac) {
 	guint8 serverid[] = { 10, 0, 0, 1 };
 	guint8 poolstart[] = { 10, 0, 0, 2 };
-	unsigned poollen = 2;
-	guint8 subnetmask[] = { 255, 255, 255, 252 };
+	unsigned poollen = 5;
+	guint8 subnetmask[] = { 255, 255, 255, 248 };
 	guint8 defaultgw[] = { 10, 0, 0, 1 };
 	g_message("starting dhcp server for %s", interfacename);
 	dhcp4servercntx = dhcp4_server_new(ifidx, interfacemac, serverid, poolstart,

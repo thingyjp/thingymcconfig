@@ -184,7 +184,7 @@ int network_startap(const gchar* nameprefix) {
 	gchar* name = g_string_free(namestr, FALSE);
 
 	network_rtnetlink_clearipv4addr(apinterface->ifidx);
-	network_rtnetlink_setipv4addr(apinterface->ifidx, "10.0.0.1/30");
+	network_rtnetlink_setipv4addr(apinterface->ifidx, "10.0.0.1/29");
 	if (!network_wpasupplicant_start(&wpa_ctrl_ap, &wpa_event_ap,
 			apinterfacename, &apsupplicantpid))
 		goto err_startsupp;
