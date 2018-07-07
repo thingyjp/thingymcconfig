@@ -237,7 +237,7 @@ gboolean network_configure(struct network_config* ntwkcfg) {
 }
 
 static const gchar* configstatestrings[] = { [NTWKST_UNCONFIGURED
-		] = "unconfigured", [NTWKST_UNCONFIGURED] = "inprogress",
+		] = "unconfigured", [NTWKST_INPROGRESS] = "inprogress",
 		[NTWKST_CONFIGURED] = "configured" };
 
 void network_dumpstatus(JsonBuilder* builder) {
