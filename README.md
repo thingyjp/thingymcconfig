@@ -50,6 +50,7 @@ Only tested the usb version so far (RaspberryPi official usb dongle).
 #### Marvell 88w8801,88w8897/mwifiex
 Only tested the usb version of the 88w8801 and the pci-e version of 88w8897
 so far. Station and AP come up and operate correctly.
+However setting a custom IE in the access point broadcasts doesn't seem to work.
  
 ### Chipsets/Drivers that will not work (yet)
 #### Realtek rtl8188eu and variants

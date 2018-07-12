@@ -1,7 +1,7 @@
 PKGCONFIG ?= pkg-config
 CFLAGS=-ggdb -Werror=implicit-function-declaration
 LIBMICROHTTPD=`$(PKGCONFIG) --cflags --libs libmicrohttpd`
-GLIB=`$(PKGCONFIG) --libs --cflags glib-2.0 gio-2.0`
+GLIB=`$(PKGCONFIG) --libs --cflags glib-2.0 gio-2.0 gio-unix-2.0`
 GLIBJSON=`$(PKGCONFIG) --libs --cflags json-glib-1.0`
 HOSTAPD=-Ihostap/src/common/ -Ihostap/src/utils/
 
@@ -24,7 +24,7 @@ endif
 
 .PHONY: clean
 
-thingymcconfig: thingymcconfig.c \
+thingymcconfig: thingymcconfig.o \
 	http.o \
 	os_unix.o \
 	wpa_ctrl.o \
@@ -41,8 +41,12 @@ thingymcconfig: thingymcconfig.c \
 	dhcp4_client.o \
 	dhcp4_server.o \
 	packetsocket.o \
-	logging.o
+	logging.o \
+	ctrl.o
 	$(CC) $(CFLAGS) $(LIBMICROHTTPD) $(GLIBJSON) $(LIBNLGENL) $(LIBNLROUTE) -o $@ $^
+
+thingymcconfig.o: thingymcconfig.c ctrl.h $(COMMONHEADERS)
+	$(CC) $(CFLAGS) $(LIBMICROHTTPD) $(GLIBJSON) -c -o $@ $<
 
 http.o: http.c http.h $(COMMONHEADERS)
 	$(CC) $(CFLAGS) $(LIBMICROHTTPD) $(GLIBJSON) -c -o $@ $<
@@ -91,6 +95,9 @@ packetsocket.o: packetsocket.c packetsocket.h \
 	$(CC) $(CFLAGS) $(GLIB) -c -o $@ $<
 
 logging.o: logging.c logging.h
+	$(CC) $(CFLAGS) $(GLIB) -c -o $@ $<
+
+ctrl.o: ctrl.c ctrl.h
 	$(CC) $(CFLAGS) $(GLIB) -c -o $@ $<
 
 #wpa_supplicant provided bits

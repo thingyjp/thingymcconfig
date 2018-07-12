@@ -3,6 +3,7 @@
 #include <glib-unix.h>
 #include "buildconfig.h"
 #include "config.h"
+#include "ctrl.h"
 #include "network.h"
 #include "http.h"
 
@@ -11,6 +12,7 @@ static GMainLoop* mainloop;
 gboolean siginthandler(gpointer user_data) {
 	g_message("terminating...");
 	g_main_loop_quit(mainloop);
+	return TRUE;
 }
 
 int main(int argc, char** argv) {
@@ -18,6 +20,7 @@ int main(int argc, char** argv) {
 	gchar* nameprefix = "thingy";
 	gchar* interface = NULL;
 	gboolean waitforinterface = FALSE;
+	gboolean nonetwork = FALSE;
 	gboolean noap = FALSE;
 	gchar* cert = NULL;
 	gchar* key = NULL;
@@ -37,7 +40,9 @@ int main(int argc, char** argv) {
 			NULL }, { "key", 'k', 0, G_OPTION_ARG_STRING, &key, "private key",
 			NULL },
 #ifdef DEVELOPMENT
-			{ "noap", 'n', 0, G_OPTION_ARG_NONE, &noap,
+			{ "nonetwork", 0, 0, G_OPTION_ARG_NONE, &nonetwork,
+					"no networking, for local testing", NULL }, { "noap", 0, 0,
+					G_OPTION_ARG_NONE, &noap,
 					"don't create an ap, only useful for development", NULL },
 #endif
 			{ NULL } };
@@ -66,33 +71,44 @@ int main(int argc, char** argv) {
 	mainloop = g_main_loop_new(NULL, FALSE);
 
 	config_init();
-	network_init(interface, noap);
+	ctrl_init();
 
-	if (waitforinterface && network_waitforinterface()) {
-		ret = 1;
-		goto err_network_waitforinterface;
+	if (!nonetwork) {
+		network_init(interface, noap);
+
+		if (waitforinterface && network_waitforinterface()) {
+			ret = 1;
+			goto err_network_waitforinterface;
+		}
+
+		if (network_start()) {
+			g_message("failed to start networking");
+			ret = 1;
+			goto err_network_start;
+		}
+
+		if (http_start()) {
+			g_message("failed to start http");
+			ret = 1;
+			goto err_http_start;
+		}
 	}
 
-	if (network_start()) {
-		g_message("failed to start networking");
-		ret = 1;
-		goto err_network_start;
-	}
-
-	if (http_start()) {
-		g_message("failed to start http");
-		ret = 1;
-		goto err_http_start;
-	}
+	ctrl_start();
 
 	//todo should only be called when entering provisioning mode
-	network_startap(nameprefix);
+	if (!nonetwork)
+		network_startap(nameprefix);
 
 	g_unix_signal_add(SIGINT, siginthandler, NULL);
 	g_main_loop_run(mainloop);
 
+	ctrl_stop();
+
 	http_stop();
-	err_http_start: network_stop();
+	err_http_start: //
+	if (!nonetwork)
+		network_stop();
 	err_network_waitforinterface: //
 	err_network_start: //
 	err_args: //

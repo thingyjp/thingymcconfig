@@ -349,6 +349,7 @@ gboolean network_wpasupplicant_start(struct wpa_ctrl** wpa_ctrl,
 		GIOChannel* channel = g_io_channel_unix_new(fd);
 		g_io_add_watch(channel, G_IO_IN, network_wpasupplicant_onevent,
 				*wpa_event);
+		g_io_channel_unref(channel);
 	} else {
 		g_message("failed to open wpa_supplicant event socket");
 		goto err_openevntsck;
