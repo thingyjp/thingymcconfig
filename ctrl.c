@@ -10,16 +10,18 @@ static GSocketService* socketservice;
 static void ctrl_send_networkstate(GSocketConnection* connection) {
 	GByteArray* pktbuff = g_byte_array_new();
 
-	struct thingmcconfig_ctrl_field fields[] = { { .type =
+	struct thingymcconfig_ctrl_field fields[] = { { .type =
 	THINGYMCCONFIG_FIELDTYPE_NETWORKSTATEUPDATE_SUPPLICANTSTATE }, { .type =
 	THINGYMCCONFIG_FIELDTYPE_NETWORKSTATEUPDATE_DHCPSTATE } };
 
 	struct thingymcconfig_ctrl_msgheader msghdr = { .type =
 	THINGYMCCONFIG_MSGTYPE_EVENT_NETWORKSTATEUPDATE, .numfields = G_N_ELEMENTS(
-			fields) };
+			fields) + 1 };
 
 	g_byte_array_append(pktbuff, (void*) &msghdr, sizeof(msghdr));
 	g_byte_array_append(pktbuff, (void*) fields, sizeof(fields));
+	g_byte_array_append(pktbuff, (void*) &thingymcconfig_terminator,
+			sizeof(thingymcconfig_terminator));
 
 	GOutputStream* os = g_io_stream_get_output_stream(G_IO_STREAM(connection));
 	g_output_stream_write(os, pktbuff->data, pktbuff->len, NULL, NULL);
