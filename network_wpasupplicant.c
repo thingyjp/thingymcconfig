@@ -2,6 +2,7 @@
 #include "network_wpasupplicant.h"
 #include "network_wpasupplicant_priv.h"
 #include "network_priv.h"
+#include "utils.h"
 
 #define ISOK(rsp) (strcmp(rsp, "OK") == 0)
 
@@ -346,10 +347,8 @@ gboolean network_wpasupplicant_start(struct wpa_ctrl** wpa_ctrl,
 		g_message("wpa_supplicant event socket connected");
 		wpa_ctrl_attach(*wpa_event);
 		int fd = wpa_ctrl_get_fd(*wpa_event);
-		GIOChannel* channel = g_io_channel_unix_new(fd);
-		g_io_add_watch(channel, G_IO_IN, network_wpasupplicant_onevent,
+		utils_addwatchforsocketfd(fd, G_IO_IN, network_wpasupplicant_onevent,
 				*wpa_event);
-		g_io_channel_unref(channel);
 	} else {
 		g_message("failed to open wpa_supplicant event socket");
 		goto err_openevntsck;

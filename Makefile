@@ -14,15 +14,7 @@ ifdef WPASUPPLICANT_BINARYPATH
 	CFLAGS+= -D WPASUPPLICANT_BINARYPATH=\"$(WPASUPPLICANT_BINARYPATH)\"
 endif
 
-ifdef DHCPC_BINARYPATH
-	CFLAGS+= -D DHCPC_BINARYPATH=\"$(DHCPC_BINARYPATH)\"
-endif
-
-ifdef DHCPD_BINARYPATH
-	CFLAGS+= -D DHCPD_BINARYPATH=\"$(DHCPD_BINARYPATH)\"
-endif
-
-.PHONY: clean
+.PHONY: clean install
 
 thingymcconfig: thingymcconfig.o \
 	http.o \
@@ -98,7 +90,7 @@ logging.o: logging.c logging.h
 	$(CC) $(CFLAGS) $(GLIB) -c -o $@ $<
 
 ctrl.o: ctrl.c ctrl.h
-	$(CC) $(CFLAGS) $(GLIB) -c -o $@ $<
+	$(CC) $(CFLAGS) $(GLIB) $(GLIBJSON) -c -o $@ $<
 
 #wpa_supplicant provided bits
 
@@ -107,6 +99,8 @@ os_unix.o: hostap/src/utils/os_unix.c
 
 wpa_ctrl.o: hostap/src/common/wpa_ctrl.c
 	$(CC) $(CFLAGS) $(HOSTAPD) -DCONFIG_CTRL_IFACE -DCONFIG_CTRL_IFACE_UNIX -c -o $@ $<
+
+install:
 
 clean:
 	-rm thingymcconfig *.o

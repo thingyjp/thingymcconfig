@@ -2,9 +2,11 @@
 #include <gio/gunixsocketaddress.h>
 #include "ctrl.h"
 #include "include/thingymcconfig/ctrl.h"
+#include "utils.h"
 
 #define CTRLSOCKPATH "/tmp/thingymcconfig.socket"
 
+static GPtrArray* clientconnections;
 static GSocketService* socketservice;
 
 static void ctrl_send_networkstate(GSocketConnection* connection) {
@@ -28,18 +30,30 @@ static void ctrl_send_networkstate(GSocketConnection* connection) {
 	g_byte_array_free(pktbuff, TRUE);
 }
 
+static gboolean ctrl_appincallback(GIOChannel *source, GIOCondition condition,
+		gpointer data) {
+	g_message("incoming data from app");
+
+	return FALSE;
+}
+
 static gboolean ctrl_incomingcallback(GSocketService *service,
 		GSocketConnection *connection, GObject *source_object,
 		gpointer user_data) {
 	g_message("incoming control socket connection");
 
-	ctrl_send_networkstate(connection);
+	g_object_ref(connection);
+	g_ptr_array_add(clientconnections, connection);
 
+	utils_addwatchforsocket(g_socket_connection_get_socket(connection), G_IO_IN,
+			ctrl_appincallback, NULL);
+
+	ctrl_send_networkstate(connection);
 	return FALSE;
 }
 
 void ctrl_init() {
-
+	clientconnections = g_ptr_array_new();
 }
 
 void ctrl_start() {

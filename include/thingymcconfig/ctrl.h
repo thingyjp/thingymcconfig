@@ -44,7 +44,8 @@ struct __attribute__((__packed__)) thingymcconfig_ctrl_msgheader {
 	unsigned char type;
 	/* number of fields being sent *including* the terminator */
 	unsigned char numfields;
-	// pad up to 32bits, might be used for something later
+	/* pad up to 32bits, might be used for something later,
+	 should be 0'd. */
 	unsigned char pad0, pad1;
 };
 
