@@ -67,7 +67,18 @@ ath10k driver and chipset supports all the functionality required
 but usb support is experimental and doesn't seem to work. pci-e and SDIO
 might work.
 
-## Protocol
+## Application interface
+Applications that want to be notified of connectivity changes
+can do so by listening to a unix domain socket. Applications can
+also use this socket to inform thingymcconfig of their end-to-end
+connectivity state for use by clients in during provisioning.
+This is useful in situations where a thing might have a working wifi
+connection but the app(s) that implement the functionality can't
+actually connect to required services. Application level errors etc
+can be presented to the provisioning client so it can decide how to
+proceed.
+
+## Provisioning Protocol
 The intention is to make this as simple as possible and for now
 only one network can be configured at once.
 
