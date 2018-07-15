@@ -6,6 +6,7 @@
 #include "ctrl.h"
 #include "network.h"
 #include "http.h"
+#include "apps.h"
 
 static GMainLoop* mainloop;
 
@@ -19,6 +20,7 @@ int main(int argc, char** argv) {
 
 	gchar* nameprefix = "thingy";
 	gchar* interface = NULL;
+	gchar** apps = NULL;
 	gboolean waitforinterface = FALSE;
 	gboolean nonetwork = FALSE;
 	gboolean noap = FALSE;
@@ -35,6 +37,9 @@ int main(int argc, char** argv) {
 			{ "interface", 'i', 0, G_OPTION_ARG_STRING, &interface, "interface",
 			NULL }, { "waitforinterface", 'w', 0, G_OPTION_ARG_NONE,
 					&waitforinterface, "wait for interface to appear", NULL },
+			// apps
+			{ "app", 'a', 0, G_OPTION_ARG_STRING_ARRAY, &apps,
+					"register an app", NULL },
 			// crypto options
 			{ "cert", 'c', 0, G_OPTION_ARG_STRING, &cert, "device certificate",
 			NULL }, { "key", 'k', 0, G_OPTION_ARG_STRING, &key, "private key",
@@ -72,6 +77,7 @@ int main(int argc, char** argv) {
 
 	config_init();
 	ctrl_init();
+	apps_init(apps);
 
 	if (!nonetwork) {
 		network_init(interface, noap);

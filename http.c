@@ -4,6 +4,7 @@
 #include "http.h"
 #include "network.h"
 #include "utils.h"
+#include "apps.h"
 
 struct postconninfo {
 	GByteArray* payload;
@@ -43,6 +44,7 @@ static int http_handleconnection_status(struct MHD_Connection* connection) {
 	JsonBuilder* jsonbuilder = json_builder_new();
 	json_builder_begin_object(jsonbuilder);
 	network_dumpstatus(jsonbuilder);
+	apps_dumpstatus(jsonbuilder);
 	json_builder_end_object(jsonbuilder);
 
 	gsize contentln;

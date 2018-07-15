@@ -34,7 +34,8 @@ thingymcconfig: thingymcconfig.o \
 	dhcp4_server.o \
 	packetsocket.o \
 	logging.o \
-	ctrl.o
+	ctrl.o \
+	apps.o
 	$(CC) $(CFLAGS) $(LIBMICROHTTPD) $(GLIBJSON) $(LIBNLGENL) $(LIBNLROUTE) -o $@ $^
 
 thingymcconfig.o: thingymcconfig.c ctrl.h $(COMMONHEADERS)
@@ -90,6 +91,9 @@ logging.o: logging.c logging.h
 	$(CC) $(CFLAGS) $(GLIB) -c -o $@ $<
 
 ctrl.o: ctrl.c ctrl.h
+	$(CC) $(CFLAGS) $(GLIB) $(GLIBJSON) -c -o $@ $<
+
+apps.o: apps.c apps.h
 	$(CC) $(CFLAGS) $(GLIB) $(GLIBJSON) -c -o $@ $<
 
 #wpa_supplicant provided bits
