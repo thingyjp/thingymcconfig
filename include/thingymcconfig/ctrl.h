@@ -1,8 +1,7 @@
 #ifndef THINGYMCCONFIG_CTRL_H_
 #define THINGYMCCONFIG_CTRL_H_
 
-/*
- * Messages to/from the control socket look like this:
+/* Messages to/from the control socket look like this:
  *
  * [ msg hdr    ]
  * [ field 0    ]
@@ -10,11 +9,9 @@
  * .
  * .
  * [ terminator ]
- *
  */
 
-/*
- * Generic states, these should be valid for anywhere a state can
+/* Generic states, these should be valid for anywhere a state can
  * be expressed. Message specific states should use values higher
  * than GENERICEND
  */
@@ -29,9 +26,9 @@
 #define THINGYMCCONFIG_FIELDTYPE_NETWORKSTATEUPDATE_SUPPLICANTSTATE   1
 #define THINGYMCCONFIG_FIELDTYPE_NETWORKSTATEUPDATE_DHCPSTATE         2
 
-#define THINGYMCCONFIG_FIELDTYPE_APPSTATEUPDATE_APPINDEX              0
-#define THINGYMCCONFIG_FIELDTYPE_APPSTATEUPDATE_APPSTATE              1
-#define THINGYMCCONFIG_FIELDTYPE_APPSTATEUPDATE_CONNECTIVITY          2
+#define THINGYMCCONFIG_FIELDTYPE_APPSTATEUPDATE_APPINDEX              1
+#define THINGYMCCONFIG_FIELDTYPE_APPSTATEUPDATE_APPSTATE              2
+#define THINGYMCCONFIG_FIELDTYPE_APPSTATEUPDATE_CONNECTIVITY          3
 
 #define THINGYMCCONFIG_FIELDTYPE_TERMINATOR                           255
 
@@ -49,8 +46,7 @@ struct __attribute__((__packed__)) thingymcconfig_ctrl_msgheader {
 	unsigned char pad0, pad1;
 };
 
-/*
- * Opaque field in message. Types except for TERMINATOR are namespaced by
+/* Opaque field in message. Types except for TERMINATOR are namespaced by
  * the type in the header. i.e. field type 0 in message type 0 is different
  * to field type 0 in message type 1.
  */

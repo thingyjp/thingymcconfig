@@ -1,5 +1,6 @@
 #include "apps.h"
 #include "jsonbuilderutils.h"
+#include "include/thingymcconfig/ctrl.h"
 
 static GPtrArray* apps;
 
@@ -7,7 +8,9 @@ struct apps_app {
 	unsigned index;
 	const gchar* name;
 	unsigned char appstate;
-	unsigned char connectivitystate;
+	unsigned char apperror;
+	unsigned char connectivity;
+	unsigned char connectivityerror;
 };
 
 static void apps_printapp(gpointer data, gpointer user_data) {
@@ -23,7 +26,7 @@ void apps_init(const gchar** appnames) {
 		while (*appnames != NULL) {
 			g_message("found app %s", *appnames);
 			struct apps_app* app = g_malloc0(sizeof(*app));
-			app->index = numapps++;
+			app->index = 1 + numapps++;
 			app->name = *appnames++;
 			g_ptr_array_add(apps, app);
 		}
@@ -37,16 +40,60 @@ void apps_init(const gchar** appnames) {
 }
 
 void apps_onappstateupdate(const struct apps_appstateupdate* update) {
+	int arridx = update->appindex - 1;
+	if (arridx >= apps->len) {
+		g_message("bad app index %d", (int )update->appindex);
+		return;
+	}
 
+	struct apps_app* appstate = g_ptr_array_index(apps, arridx);
+	g_assert(appstate->index == update->appindex);
+	appstate->appstate = update->appstate;
+
+	if (update->appstate != 0) {
+		appstate->appstate = update->appstate;
+		appstate->apperror = update->apperror;
+		g_message("updated app status for %s", appstate->name);
+	}
+
+	if (update->connectivitystate != 0) {
+		appstate->connectivity = update->connectivitystate;
+		appstate->connectivityerror = update->connectivityerror;
+		g_message("updated connectivity status for %s", appstate->name);
+	}
 }
+
+static const gchar* statestrings[] = { "UNKNOWN", "OK", "ERROR", "SEECODE" };
+
+#define FIELD_NAME "name"
+#define OBJECT_APPSTATE "appstate"
+#define OBJECT_CONNECTIVITY "connectivity"
+#define FIELD_STATE "state"
+#define FIELD_CODE "code"
+#define FIELD_ERROR "err"
 
 static void apps_dumpapp(gpointer data, gpointer user_data) {
 	const struct apps_app* app = data;
 	JsonBuilder* builder = user_data;
 	json_builder_begin_object(builder);
-	JSONBUILDER_ADD_STRING(builder, "name", app->name);
-	JSONBUILDER_ADD_STRING(builder, "appstate", "");
-	JSONBUILDER_ADD_INT(builder, "appstate_code", app->appstate);
+	JSONBUILDER_ADD_STRING(builder, FIELD_NAME, app->name);
+
+	JSONBUILDER_START_OBJECT(builder, OBJECT_APPSTATE);
+	JSONBUILDER_ADD_STRING(builder, FIELD_STATE,
+			statestrings[MIN(app->appstate, G_N_ELEMENTS(statestrings))]);
+	JSONBUILDER_ADD_INT(builder, FIELD_CODE, app->appstate);
+	if (app->appstate == THINGYMCCONFIG_ERR)
+		JSONBUILDER_ADD_INT(builder, FIELD_ERROR, app->appstate);
+	json_builder_end_object(builder);
+
+	JSONBUILDER_START_OBJECT(builder, OBJECT_CONNECTIVITY);
+	JSONBUILDER_ADD_STRING(builder, FIELD_STATE,
+			statestrings[MIN(app->connectivity, G_N_ELEMENTS(statestrings))]);
+	JSONBUILDER_ADD_INT(builder, FIELD_CODE, app->connectivity);
+	if (app->connectivity == THINGYMCCONFIG_ERR)
+		JSONBUILDER_ADD_INT(builder, FIELD_ERROR, app->connectivityerror);
+	json_builder_end_object(builder);
+
 	json_builder_end_object(builder);
 }
 

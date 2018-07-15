@@ -79,8 +79,20 @@ static void ctrl_appincallback_appstatefieldcallback(
 	struct apps_appstateupdate* appstate = user_data;
 	switch (field->type) {
 	case THINGYMCCONFIG_FIELDTYPE_APPSTATEUPDATE_APPINDEX:
+		appstate->appindex =
+				((struct thingymcconfig_ctrl_field_index*) field)->index;
 		break;
-	case THINGYMCCONFIG_FIELDTYPE_APPSTATEUPDATE_CONNECTIVITY:
+	case THINGYMCCONFIG_FIELDTYPE_APPSTATEUPDATE_APPSTATE: {
+		struct thingymcconfig_ctrl_field_stateanderror* f = field;
+		appstate->appstate = f->state;
+		appstate->apperror = f->error;
+	}
+		break;
+	case THINGYMCCONFIG_FIELDTYPE_APPSTATEUPDATE_CONNECTIVITY: {
+		struct thingymcconfig_ctrl_field_stateanderror* f = field;
+		appstate->connectivitystate = f->state;
+		appstate->connectivityerror = f->error;
+	}
 		break;
 	}
 }
@@ -97,12 +109,18 @@ static gboolean ctrl_appincallback(GIOChannel *source, GIOCondition condition,
 
 	if (msghdr.type == THINGYMCCONFIG_MSGTYPE_EVENT_APPSTATEUPDATE) {
 		struct apps_appstateupdate appstate;
+		memset(&appstate, 0, sizeof(appstate));
 		if (ctrl_readfields(is, &msghdr,
 				ctrl_appincallback_appstatefieldcallback, &appstate))
 			apps_onappstateupdate(&appstate);
-	} else
-		ctrl_readfields(is, &msghdr, NULL, NULL);
+		else
+			goto err;
+	} else if (!ctrl_readfields(is, &msghdr, NULL, NULL))
+		goto err;
 
+	return TRUE;
+	err: //
+	ctrl_disconnectapp(connection);
 	return FALSE;
 }
 
@@ -118,7 +136,7 @@ static gboolean ctrl_incomingcallback(GSocketService *service,
 			ctrl_appincallback, connection);
 
 	ctrl_send_networkstate(connection);
-	return FALSE;
+	return TRUE;
 }
 
 void ctrl_init() {

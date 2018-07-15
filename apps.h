@@ -5,7 +5,9 @@
 struct apps_appstateupdate {
 	unsigned char appindex;
 	unsigned char appstate;
+	unsigned char apperror;
 	unsigned char connectivitystate;
+	unsigned char connectivityerror;
 };
 
 void apps_init(const gchar** appnames);
