@@ -1,10 +1,13 @@
 #include "apps.h"
+#include "jsonbuilderutils.h"
 
 static GPtrArray* apps;
 
 struct apps_app {
 	unsigned index;
 	const gchar* name;
+	unsigned char appstate;
+	unsigned char connectivitystate;
 };
 
 static void apps_printapp(gpointer data, gpointer user_data) {
@@ -41,8 +44,9 @@ static void apps_dumpapp(gpointer data, gpointer user_data) {
 	const struct apps_app* app = data;
 	JsonBuilder* builder = user_data;
 	json_builder_begin_object(builder);
-	json_builder_set_member_name(builder, "name");
-	json_builder_add_string_value(builder, app->name);
+	JSONBUILDER_ADD_STRING(builder, "name", app->name);
+	JSONBUILDER_ADD_STRING(builder, "appstate", "");
+	JSONBUILDER_ADD_INT(builder, "appstate_code", app->appstate);
 	json_builder_end_object(builder);
 }
 
