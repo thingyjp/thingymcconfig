@@ -4,6 +4,7 @@
 #include "dhcp4_client.h"
 #include "dhcp4_server.h"
 #include "ip4.h"
+#include "jsonbuilderutils.h"
 
 static struct dhcp4_client_cntx* dhcp4clientcntx = NULL;
 static struct dhcp4_server_cntx* dhcp4servercntx;
@@ -74,16 +75,12 @@ static void network_dhcp_dumpstatus_addip4addr(JsonBuilder* builder,
 
 void network_dhcp_dumpstatus(JsonBuilder* builder) {
 	if (dhcp4clientcntx != NULL) {
-		json_builder_set_member_name(builder, "dhcp4");
-		json_builder_begin_object(builder);
-
-		json_builder_set_member_name(builder, "state");
-		json_builder_add_string_value(builder,
+		JSONBUILDER_START_OBJECT(builder, "dhcp4");
+		JSONBUILDER_ADD_STRING(builder, "state",
 				dhcpcstatestrs[dhcp4clientcntx->state]);
 
 		if (dhcp4clientcntx->currentlease != NULL) {
-			json_builder_set_member_name(builder, "lease");
-			json_builder_begin_object(builder);
+			JSONBUILDER_START_OBJECT(builder, "lease");
 			json_builder_set_member_name(builder, "ip");
 			network_dhcp_dumpstatus_addip4addr(builder,
 					dhcp4clientcntx->currentlease->leasedip);
@@ -93,8 +90,7 @@ void network_dhcp_dumpstatus(JsonBuilder* builder) {
 			json_builder_set_member_name(builder, "defaultgw");
 			network_dhcp_dumpstatus_addip4addr(builder,
 					dhcp4clientcntx->currentlease->defaultgw);
-			json_builder_set_member_name(builder, "nameservers");
-			json_builder_begin_array(builder);
+			JSONBUILDER_START_ARRAY(builder, "nameservers");
 			for (int i = 0; i < dhcp4clientcntx->currentlease->numnameservers;
 					i++) {
 				network_dhcp_dumpstatus_addip4addr(builder,

@@ -12,6 +12,7 @@
 #include "network_wpasupplicant.h"
 #include "network_dhcp.h"
 #include "config.h"
+#include "jsonbuilderutils.h"
 
 #define NUMBEROFINTERFACESWHENCONFIGURED 2
 
@@ -241,13 +242,9 @@ static const gchar* configstatestrings[] = { [NTWKST_UNCONFIGURED
 		[NTWKST_CONFIGURED] = "configured" };
 
 void network_dumpstatus(JsonBuilder* builder) {
-	json_builder_set_member_name(builder, "network");
-	json_builder_begin_object(builder);
-
-	json_builder_set_member_name(builder, "config_state");
-	json_builder_add_string_value(builder,
+	JSONBUILDER_START_OBJECT(builder, "network");
+	JSONBUILDER_ADD_STRING(builder, "config_state",
 			configstatestrings[configurationstate]);
-
 	network_wpasupplicant_dumpstatus(builder);
 	network_dhcp_dumpstatus(builder);
 	json_builder_end_object(builder);

@@ -3,6 +3,7 @@
 #include "network_wpasupplicant_priv.h"
 #include "network_priv.h"
 #include "utils.h"
+#include "jsonbuilderutils.h"
 
 #define ISOK(rsp) (strcmp(rsp, "OK") == 0)
 
@@ -375,15 +376,11 @@ void network_wpasupplicant_stop(struct wpa_ctrl* wpa_ctrl, GPid* pid) {
 }
 
 void network_wpasupplicant_dumpstatus(JsonBuilder* builder) {
-	json_builder_set_member_name(builder, "supplicant");
-	json_builder_begin_object(builder);
-	json_builder_set_member_name(builder, "connected");
-	json_builder_add_boolean_value(builder, connected);
+	JSONBUILDER_START_OBJECT(builder, "supplicant");
+	JSONBUILDER_ADD_BOOL(builder, "connected", connected);
 
-	if (lasterror != NULL) {
-		json_builder_set_member_name(builder, "lasterror");
-		json_builder_add_string_value(builder, lasterror);
-	}
+	if (lasterror != NULL)
+		JSONBUILDER_ADD_STRING(builder, "lasterror", lasterror);
 
 	json_builder_end_object(builder);
 }

@@ -5,6 +5,7 @@
 #include "network.h"
 #include "utils.h"
 #include "apps.h"
+#include "jsonbuilderutils.h"
 
 struct postconninfo {
 	GByteArray* payload;
