@@ -2,9 +2,17 @@
 This is intended to be a daemon that manages a wifi interface of
 a Linux based IoT device.
 
+## Building
+
+meson builddir
+cd builddir
+ninja
+
 ## Requirements
 
 ### Software
+* meson (during build only)
+* ninja (during build only)
 * glib
 * glib-json
 * libmicrohttpd with TLS enabled
