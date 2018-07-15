@@ -77,7 +77,7 @@ int main(int argc, char** argv) {
 
 	config_init();
 	ctrl_init();
-	apps_init(apps);
+	apps_init((const gchar**) apps);
 
 	if (!nonetwork) {
 		network_init(interface, noap);
@@ -93,11 +93,12 @@ int main(int argc, char** argv) {
 			goto err_network_start;
 		}
 
-		if (http_start()) {
-			g_message("failed to start http");
-			ret = 1;
-			goto err_http_start;
-		}
+	}
+
+	if (http_start()) {
+		g_message("failed to start http");
+		ret = 1;
+		goto err_http_start;
 	}
 
 	ctrl_start();

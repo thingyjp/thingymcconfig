@@ -5,7 +5,7 @@
 #include "dhcp4_server.h"
 #include "ip4.h"
 
-static struct dhcp4_client_cntx* dhcp4clientcntx;
+static struct dhcp4_client_cntx* dhcp4clientcntx = NULL;
 static struct dhcp4_server_cntx* dhcp4servercntx;
 
 void _dhcp4_client_clearinterface(unsigned ifidx) {
@@ -73,36 +73,36 @@ static void network_dhcp_dumpstatus_addip4addr(JsonBuilder* builder,
 }
 
 void network_dhcp_dumpstatus(JsonBuilder* builder) {
-	//TODO this might actually need to copy the state
-	// from the dhcpc..
-	json_builder_set_member_name(builder, "dhcp4");
-	json_builder_begin_object(builder);
-
-	json_builder_set_member_name(builder, "state");
-	json_builder_add_string_value(builder,
-			dhcpcstatestrs[dhcp4clientcntx->state]);
-
-	if (dhcp4clientcntx->currentlease != NULL) {
-		json_builder_set_member_name(builder, "lease");
+	if (dhcp4clientcntx != NULL) {
+		json_builder_set_member_name(builder, "dhcp4");
 		json_builder_begin_object(builder);
-		json_builder_set_member_name(builder, "ip");
-		network_dhcp_dumpstatus_addip4addr(builder,
-				dhcp4clientcntx->currentlease->leasedip);
-		json_builder_set_member_name(builder, "subnetmask");
-		network_dhcp_dumpstatus_addip4addr(builder,
-				dhcp4clientcntx->currentlease->subnetmask);
-		json_builder_set_member_name(builder, "defaultgw");
-		network_dhcp_dumpstatus_addip4addr(builder,
-				dhcp4clientcntx->currentlease->defaultgw);
-		json_builder_set_member_name(builder, "nameservers");
-		json_builder_begin_array(builder);
-		for (int i = 0; i < dhcp4clientcntx->currentlease->numnameservers;
-				i++) {
+
+		json_builder_set_member_name(builder, "state");
+		json_builder_add_string_value(builder,
+				dhcpcstatestrs[dhcp4clientcntx->state]);
+
+		if (dhcp4clientcntx->currentlease != NULL) {
+			json_builder_set_member_name(builder, "lease");
+			json_builder_begin_object(builder);
+			json_builder_set_member_name(builder, "ip");
 			network_dhcp_dumpstatus_addip4addr(builder,
-					dhcp4clientcntx->currentlease->nameservers[i]);
+					dhcp4clientcntx->currentlease->leasedip);
+			json_builder_set_member_name(builder, "subnetmask");
+			network_dhcp_dumpstatus_addip4addr(builder,
+					dhcp4clientcntx->currentlease->subnetmask);
+			json_builder_set_member_name(builder, "defaultgw");
+			network_dhcp_dumpstatus_addip4addr(builder,
+					dhcp4clientcntx->currentlease->defaultgw);
+			json_builder_set_member_name(builder, "nameservers");
+			json_builder_begin_array(builder);
+			for (int i = 0; i < dhcp4clientcntx->currentlease->numnameservers;
+					i++) {
+				network_dhcp_dumpstatus_addip4addr(builder,
+						dhcp4clientcntx->currentlease->nameservers[i]);
+			}
+			json_builder_end_array(builder);
+			json_builder_end_object(builder);
 		}
-		json_builder_end_array(builder);
 		json_builder_end_object(builder);
 	}
-	json_builder_end_object(builder);
 }

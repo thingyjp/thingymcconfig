@@ -8,6 +8,6 @@ struct apps_appstateupdate {
 	unsigned char connectivitystate;
 };
 
-void apps_init(const gchar** apps);
+void apps_init(const gchar** appnames);
 void apps_onappstateupdate(const struct apps_appstateupdate* update);
 void apps_dumpstatus(JsonBuilder* builder);
