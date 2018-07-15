@@ -4,9 +4,11 @@ a Linux based IoT device.
 
 ## Building
 
+```
 meson builddir
 cd builddir
 ninja
+```
 
 ## Requirements
 
