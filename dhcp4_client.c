@@ -102,6 +102,8 @@ static void dhcp4_client_processdhcppkt(struct dhcp4_client_cntx* cntx,
 				dhcp4_client_changestate(cntx, DHCP4CS_REQUESTING);
 				break;
 			}
+			default:
+				break;
 			}
 			break;
 		case DHCP4CS_REQUESTING:
@@ -109,7 +111,11 @@ static void dhcp4_client_processdhcppkt(struct dhcp4_client_cntx* cntx,
 			case DHCP4_DHCPMESSAGETYPE_ACK:
 				dhcp4_client_changestate(cntx, DHCP4CS_CONFIGURED);
 				break;
+			default:
+				break;
 			}
+			break;
+		default:
 			break;
 		}
 	} else
@@ -169,6 +175,8 @@ static void dhcp4_client_changestate(struct dhcp4_client_cntx* cntx,
 				cntx->currentlease->numnameservers);
 		g_timeout_add(cntx->currentlease->leasetime * 1000,
 				dhcp4_client_leasetimeout, cntx);
+		break;
+	default:
 		break;
 	}
 }
