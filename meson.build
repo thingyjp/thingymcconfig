@@ -33,4 +33,4 @@ hostapincdir = include_directories(['hostap/src/common/','hostap/src/utils/'])
 add_global_arguments('-DCONFIG_CTRL_IFACE', language : 'c')
 add_global_arguments('-DCONFIG_CTRL_IFACE_UNIX', language : 'c')
 
-executable('thingymcconfig', src, include_directories : hostapincdir, dependencies : deps)
+executable('thingymcconfig', src, include_directories : hostapincdir, dependencies : deps, install : true)
