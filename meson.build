@@ -34,5 +34,6 @@ add_global_arguments('-DWPASUPPLICANT_BINARYPATH="' + get_option('wpasupplicantp
 add_global_arguments('-DCONFIG_CTRL_IFACE', language : 'c')
 add_global_arguments('-DCONFIG_CTRL_IFACE_UNIX', language : 'c')
 
-executable('thingymcconfig', src, include_directories : hostapincdir, dependencies : deps, install : true)
+executable('thingymcconfig', src, include_directories : hostapincdir,
+           dependencies : deps, install : true, install_dir : 'sbin')
 install_headers('ctrl.h', subdir : 'thingymcconfig')
