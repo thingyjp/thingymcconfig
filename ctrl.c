@@ -8,7 +8,9 @@
 static GPtrArray* clientconnections;
 static GSocketService* socketservice;
 
-static void ctrl_send_networkstate(GSocketConnection* connection) {
+static gboolean ctrl_send_networkstate(GSocketConnection* connection) {
+	gboolean ret = TRUE;
+
 	GByteArray* pktbuff = g_byte_array_new();
 
 	struct thingymcconfig_ctrl_field fields[] = { { .type =
@@ -25,8 +27,11 @@ static void ctrl_send_networkstate(GSocketConnection* connection) {
 			sizeof(thingymcconfig_terminator));
 
 	GOutputStream* os = g_io_stream_get_output_stream(G_IO_STREAM(connection));
-	g_output_stream_write(os, pktbuff->data, pktbuff->len, NULL, NULL);
+	if (g_output_stream_write(os, pktbuff->data, pktbuff->len, NULL, NULL)
+			!= pktbuff->len)
+		ret = FALSE;
 	g_byte_array_free(pktbuff, TRUE);
+	return ret;
 }
 
 static void ctrl_disconnectapp(GSocketConnection* connection) {
@@ -134,13 +139,13 @@ static gboolean ctrl_incomingcallback(GSocketService *service,
 		gpointer user_data) {
 	g_message("incoming control socket connection");
 
-	g_object_ref(connection);
-	g_ptr_array_add(clientconnections, connection);
+	if (ctrl_send_networkstate(connection)) {
+		g_object_ref(connection);
+		g_ptr_array_add(clientconnections, connection);
+		utils_addwatchforsocket(g_socket_connection_get_socket(connection),
+				G_IO_IN, ctrl_appincallback, connection);
+	}
 
-	utils_addwatchforsocket(g_socket_connection_get_socket(connection), G_IO_IN,
-			ctrl_appincallback, connection);
-
-	ctrl_send_networkstate(connection);
 	return TRUE;
 }
 
@@ -161,6 +166,17 @@ void ctrl_start() {
 	}
 	g_signal_connect(socketservice, "incoming",
 			G_CALLBACK(ctrl_incomingcallback), NULL);
+}
+
+static void ctrl_notifyclientofnetworkstatechange(gpointer data,
+		gpointer user_data) {
+	GSocketConnection* clientconnection = data;
+	ctrl_send_networkstate(clientconnection);
+}
+
+void ctrl_onnetworkstatechange() {
+	g_ptr_array_foreach(clientconnections,
+			ctrl_notifyclientofnetworkstatechange, NULL);
 }
 
 void ctrl_stop() {

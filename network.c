@@ -13,6 +13,7 @@
 #include "network_dhcp.h"
 #include "config.h"
 #include "jsonbuilderutils.h"
+#include "ctrl.h"
 
 #define NUMBEROFINTERFACESWHENCONFIGURED 2
 
@@ -258,6 +259,7 @@ static void network_checkconfigurationstate() {
 		g_free(networkbeingconfigured);
 		g_message("configuration complete");
 	}
+	ctrl_onnetworkstatechange();
 }
 
 void network_onsupplicantstatechange(gboolean connected) {
