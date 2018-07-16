@@ -5,8 +5,6 @@
 #include "include/thingymcconfig/ctrl.h"
 #include "utils.h"
 
-#define CTRLSOCKPATH "/tmp/thingymcconfig.socket"
-
 static GPtrArray* clientconnections;
 static GSocketService* socketservice;
 
@@ -144,7 +142,8 @@ void ctrl_init() {
 }
 
 void ctrl_start() {
-	GSocketAddress* socketaddress = g_unix_socket_address_new(CTRLSOCKPATH);
+	GSocketAddress* socketaddress = g_unix_socket_address_new(
+	THINGYMCCONFIG_CTRLSOCKPATH);
 	socketservice = g_socket_service_new();
 
 	GError* err = NULL;
@@ -159,7 +158,7 @@ void ctrl_start() {
 
 void ctrl_stop() {
 	g_socket_service_stop(socketservice);
-	GFile* sockfile = g_file_new_for_path(CTRLSOCKPATH);
+	GFile* sockfile = g_file_new_for_path(THINGYMCCONFIG_CTRLSOCKPATH);
 	g_file_delete(sockfile, NULL, NULL);
 	g_object_unref(sockfile);
 }

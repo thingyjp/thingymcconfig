@@ -1,6 +1,8 @@
 #ifndef THINGYMCCONFIG_CTRL_H_
 #define THINGYMCCONFIG_CTRL_H_
 
+#define THINGYMCCONFIG_CTRLSOCKPATH "/tmp/thingymcconfig.socket"
+
 /* Messages to/from the control socket look like this:
  *
  * [ msg hdr    ]
