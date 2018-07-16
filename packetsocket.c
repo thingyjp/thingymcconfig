@@ -62,7 +62,8 @@ void packetsocket_send_udp(int rawsock, int ifindex, guint32 srcaddr,
 		guint16 srcprt, guint16 dstprt, guint8* payload, gsize payloadlen) {
 
 #ifdef PSDEBUG
-	g_message("sending raw %d byte udp packet from %d to %d using interface %d",
+	g_message(
+			"sending raw %"G_GSIZE_FORMAT" byte udp packet from %d to %d using interface %d",
 			payloadlen, (int ) srcprt, (int ) dstprt, (int ) ifindex);
 #endif
 

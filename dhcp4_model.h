@@ -6,7 +6,7 @@
 struct dhcp4_opt {
 	guint8 type;
 	guint8 len;
-	gchar* data;
+	guint8* data;
 };
 
 struct __attribute__((packed)) dhcp4_header {

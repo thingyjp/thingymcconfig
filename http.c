@@ -175,8 +175,9 @@ static int http_handleconnection_configure(struct MHD_Connection* connection,
 static int http_handleconnection_continuemunchingpost(const char* upload_data,
 		size_t* upload_data_size, void** con_cls) {
 	struct postconninfo* con_info = *con_cls;
-	g_message("continuing to eat post, %d", *upload_data_size);
-	g_byte_array_append(con_info->payload, upload_data, *upload_data_size);
+	g_message("continuing to eat post, %zu", *upload_data_size);
+	g_byte_array_append(con_info->payload, (const guint8*) upload_data,
+			*upload_data_size);
 	*upload_data_size = 0;
 	return MHD_YES;
 }

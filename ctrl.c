@@ -45,7 +45,9 @@ static gboolean ctrl_readfields(GInputStream* is,
 	gboolean terminated = FALSE;
 	for (int f = 0; f < msghdr->numfields; f++) {
 		struct thingymcconfig_ctrl_field field;
-		g_input_stream_read(is, &field, sizeof(field), NULL, NULL);
+		if (g_input_stream_read(is, &field, sizeof(field), NULL, NULL)
+				!= sizeof(field))
+			goto out;
 
 		fields++;
 		if (field.type == THINGYMCCONFIG_FIELDTYPE_TERMINATOR) {
@@ -81,13 +83,15 @@ static void ctrl_appincallback_appstatefieldcallback(
 				((struct thingymcconfig_ctrl_field_index*) field)->index;
 		break;
 	case THINGYMCCONFIG_FIELDTYPE_APPSTATEUPDATE_APPSTATE: {
-		struct thingymcconfig_ctrl_field_stateanderror* f = field;
+		struct thingymcconfig_ctrl_field_stateanderror* f =
+				(struct thingymcconfig_ctrl_field_stateanderror*) field;
 		appstate->appstate = f->state;
 		appstate->apperror = f->error;
 	}
 		break;
 	case THINGYMCCONFIG_FIELDTYPE_APPSTATEUPDATE_CONNECTIVITY: {
-		struct thingymcconfig_ctrl_field_stateanderror* f = field;
+		struct thingymcconfig_ctrl_field_stateanderror* f =
+				(struct thingymcconfig_ctrl_field_stateanderror*) field;
 		appstate->connectivitystate = f->state;
 		appstate->connectivityerror = f->error;
 	}
@@ -103,15 +107,18 @@ static gboolean ctrl_appincallback(GIOChannel *source, GIOCondition condition,
 
 	GInputStream* is = g_io_stream_get_input_stream(G_IO_STREAM(connection));
 	struct thingymcconfig_ctrl_msgheader msghdr;
-	g_input_stream_read(is, &msghdr, sizeof(msghdr), NULL, NULL);
+	if (g_input_stream_read(is, &msghdr, sizeof(msghdr), NULL, NULL)
+			!= sizeof(msghdr))
+		goto err;
 
 	if (msghdr.type == THINGYMCCONFIG_MSGTYPE_EVENT_APPSTATEUPDATE) {
 		struct apps_appstateupdate appstate;
 		memset(&appstate, 0, sizeof(appstate));
 		if (ctrl_readfields(is, &msghdr,
-				ctrl_appincallback_appstatefieldcallback, &appstate))
-			apps_onappstateupdate(&appstate);
-		else
+				ctrl_appincallback_appstatefieldcallback, &appstate)) {
+			if (!apps_onappstateupdate(&appstate))
+				goto err;
+		} else
 			goto err;
 	} else if (!ctrl_readfields(is, &msghdr, NULL, NULL))
 		goto err;

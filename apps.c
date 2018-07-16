@@ -39,16 +39,15 @@ void apps_init(const gchar** appnames) {
 	}
 }
 
-void apps_onappstateupdate(const struct apps_appstateupdate* update) {
+gboolean apps_onappstateupdate(const struct apps_appstateupdate* update) {
 	int arridx = update->appindex - 1;
 	if (arridx >= apps->len) {
 		g_message("bad app index %d", (int )update->appindex);
-		return;
+		goto err;
 	}
 
 	struct apps_app* appstate = g_ptr_array_index(apps, arridx);
 	g_assert(appstate->index == update->appindex);
-	appstate->appstate = update->appstate;
 
 	if (update->appstate != 0) {
 		appstate->appstate = update->appstate;
@@ -61,6 +60,11 @@ void apps_onappstateupdate(const struct apps_appstateupdate* update) {
 		appstate->connectivityerror = update->connectivityerror;
 		g_message("updated connectivity status for %s", appstate->name);
 	}
+
+	return TRUE;
+
+	err: //
+	return FALSE;
 }
 
 static const gchar* statestrings[] = { "UNKNOWN", "OK", "ERROR", "SEECODE" };

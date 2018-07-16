@@ -11,5 +11,5 @@ struct apps_appstateupdate {
 };
 
 void apps_init(const gchar** appnames);
-void apps_onappstateupdate(const struct apps_appstateupdate* update);
+gboolean apps_onappstateupdate(const struct apps_appstateupdate* update);
 void apps_dumpstatus(JsonBuilder* builder);

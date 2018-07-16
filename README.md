@@ -164,7 +164,20 @@ curl -H "Content-Type: application/json" -d '{"ssid":"mynetwork", "psk":"mypassw
         ]
       }
     }
-  }
+  },
+  "apps": [
+    {
+      "name": "myapplication",
+      "appstate": {
+        "state": "OK",
+        "code": 1
+      },
+      "connectivity": {
+        "state": "OK",
+        "code": 1
+      }
+    }
+  ]
 }
 ```
 #### curl

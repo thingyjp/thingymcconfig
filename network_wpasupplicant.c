@@ -242,7 +242,7 @@ void network_wpasupplicant_seties(struct wpa_ctrl* wpa_ctrl,
 		for (int i = 0; i < numies; i++) {
 			g_string_append_printf(iedatastr, "%02x%02x", (unsigned) ies->id,
 					(unsigned) ies->payloadlen);
-			guint8* payload = ies->payload;
+			const guint8* payload = ies->payload;
 			for (int j = 0; j < ies->payloadlen; j++) {
 				g_string_append_printf(iedatastr, "%02x",
 						(unsigned) *payload++);

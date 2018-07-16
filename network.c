@@ -173,7 +173,7 @@ int network_stop() {
 
 static const gchar thingyidstr[] = "thingymcconfig:0";
 static const struct network_wpasupplicant_ie ies[] = { { .id = 0xDD, .payload =
-		thingyidstr, .payloadlen = sizeof(thingyidstr) - 1 } };
+		(const guint8*) thingyidstr, .payloadlen = sizeof(thingyidstr) - 1 } };
 
 int network_startap(const gchar* nameprefix) {
 	if (noapinterface)
