@@ -12,4 +12,5 @@ struct apps_appstateupdate {
 
 void apps_init(const gchar** appnames);
 gboolean apps_onappstateupdate(const struct apps_appstateupdate* update);
+void apps_onappdisconnected(guint index);
 void apps_dumpstatus(JsonBuilder* builder);

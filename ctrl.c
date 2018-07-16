@@ -6,6 +6,7 @@
 #include "utils.h"
 
 static GPtrArray* clientconnections;
+static GHashTable* clientappmapping;
 static GSocketService* socketservice;
 
 static gboolean ctrl_send_networkstate(GSocketConnection* connection) {
@@ -35,6 +36,14 @@ static gboolean ctrl_send_networkstate(GSocketConnection* connection) {
 }
 
 static void ctrl_disconnectapp(GSocketConnection* connection) {
+	gpointer existingmapping = g_hash_table_lookup(clientappmapping,
+			connection);
+	if (existingmapping != NULL) {
+		guint index = GPOINTER_TO_UINT(existingmapping);
+		g_hash_table_remove(clientappmapping, connection);
+		apps_onappdisconnected(index);
+	}
+
 	g_ptr_array_remove(clientconnections, connection);
 	g_object_unref(connection);
 }
@@ -121,6 +130,20 @@ static gboolean ctrl_appincallback(GIOChannel *source, GIOCondition condition,
 		memset(&appstate, 0, sizeof(appstate));
 		if (ctrl_readfields(is, &msghdr,
 				ctrl_appincallback_appstatefieldcallback, &appstate)) {
+
+			gpointer existingmapping = g_hash_table_lookup(clientappmapping,
+					connection);
+			if (existingmapping != NULL) {
+				guint index = GPOINTER_TO_UINT(existingmapping);
+				if (appstate.appindex != index) {
+					g_message("app has mysteriously changed it's index");
+					goto err;
+				}
+			} else {
+				gpointer index = GUINT_TO_POINTER((guint ) appstate.appstate);
+				g_hash_table_insert(clientappmapping, connection, index);
+			}
+
 			if (!apps_onappstateupdate(&appstate))
 				goto err;
 		} else
@@ -151,6 +174,7 @@ static gboolean ctrl_incomingcallback(GSocketService *service,
 
 void ctrl_init() {
 	clientconnections = g_ptr_array_new();
+	clientappmapping = g_hash_table_new(g_direct_hash, g_direct_equal);
 }
 
 void ctrl_start() {
