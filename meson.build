@@ -30,6 +30,7 @@ deps = [ dependency('glib-2.0'),
          dependency('libnl-route-3.0')]
 
 hostapincdir = include_directories(['hostap/src/common/','hostap/src/utils/'])
+add_global_arguments('-DWPASUPPLICANT_BINARYPATH="' + get_option('wpasupplicantpath') + '"', language : 'c')
 add_global_arguments('-DCONFIG_CTRL_IFACE', language : 'c')
 add_global_arguments('-DCONFIG_CTRL_IFACE_UNIX', language : 'c')
 
