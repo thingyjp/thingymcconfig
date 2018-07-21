@@ -1,6 +1,6 @@
 #include <json-glib/json-glib.h>
 #include "config.h"
-#include "utils.h"
+#include "jsonbuilderutils.h"
 
 static char* cfgpath = "./config.json";
 static struct config* cfg = NULL;
@@ -18,7 +18,7 @@ static void config_save() {
 	}
 
 	gsize jsonsz;
-	gchar* json = utils_jsonbuildertostring(jsonbuilder, &jsonsz);
+	gchar* json = jsonbuilder_freetostring(jsonbuilder, &jsonsz);
 	g_file_set_contents(cfgpath, json, jsonsz, NULL);
 	g_free(json);
 }

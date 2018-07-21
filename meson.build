@@ -32,6 +32,7 @@ deps = [ dependency('glib-2.0'),
 hostapincdir = ['hostap/src/common/','hostap/src/utils/']
 jsonmacrosincdir = ['json-glib-macros']
 
+add_global_arguments('-Werror=implicit-function-declaration', language : 'c')
 add_global_arguments('-DWPASUPPLICANT_BINARYPATH="' + get_option('wpasupplicantpath') + '"', language : 'c')
 add_global_arguments('-DCONFIG_CTRL_IFACE', language : 'c')
 add_global_arguments('-DCONFIG_CTRL_IFACE_UNIX', language : 'c')
