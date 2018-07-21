@@ -1,3 +1,6 @@
 [submodule "hostap"]
 	path = hostap
 	url = http://w1.fi/hostap.git
+[submodule "json-glib-macros"]
+	path = json-glib-macros
+	url = https://github.com/fifteenhex/json-glib-macros

@@ -29,11 +29,13 @@ deps = [ dependency('glib-2.0'),
          dependency('libnl-genl-3.0'),
          dependency('libnl-route-3.0')]
 
-hostapincdir = include_directories(['hostap/src/common/','hostap/src/utils/'])
+hostapincdir = ['hostap/src/common/','hostap/src/utils/']
+jsonmacrosincdir = ['json-glib-macros']
+
 add_global_arguments('-DWPASUPPLICANT_BINARYPATH="' + get_option('wpasupplicantpath') + '"', language : 'c')
 add_global_arguments('-DCONFIG_CTRL_IFACE', language : 'c')
 add_global_arguments('-DCONFIG_CTRL_IFACE_UNIX', language : 'c')
 
-executable('thingymcconfig', src, include_directories : hostapincdir,
+executable('thingymcconfig', src, include_directories : include_directories(hostapincdir + jsonmacrosincdir),
            dependencies : deps, install : true, install_dir : 'sbin')
 install_headers('ctrl.h', subdir : 'thingymcconfig')
