@@ -39,4 +39,4 @@ add_global_arguments('-DCONFIG_CTRL_IFACE_UNIX', language : 'c')
 
 executable('thingymcconfig', src, include_directories : include_directories(hostapincdir + jsonmacrosincdir),
            dependencies : deps, install : true, install_dir : 'sbin')
-install_headers('ctrl.h', subdir : 'thingymcconfig')
+install_headers('include/thingymcconfig/ctrl.h', subdir : 'thingymcconfig')
