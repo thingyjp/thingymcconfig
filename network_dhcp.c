@@ -30,6 +30,18 @@ void _dhcp4_client_configureinterface(unsigned ifidx, const guint8* address,
 	g_free(addrstr);
 
 	network_rtnetlink_setipv4defaultfw(ifidx, gateway);
+
+	GString* resolvconfgstr = g_string_new(NULL);
+	for (int i = 0; i < numnameservers; i++) {
+		guint8* nameserver = nameservers + (4 * i);
+		g_string_append_printf(resolvconfgstr, "nameserver "IP4_ADDRFMT,
+				IP4_ARGS(nameserver));
+	}
+	gsize resolvconfstrlen = resolvconfgstr->len;
+	gchar* resolvconfstr = g_string_free(resolvconfgstr, FALSE);
+	g_file_set_contents("/etc/resolv.conf", resolvconfstr, resolvconfstrlen,
+	NULL);
+	g_free(resolvconfstr);
 }
 
 void network_dhcpclient_start(unsigned ifidx, const gchar* interfacename,
@@ -62,7 +74,7 @@ void network_dhcpserver_stop() {
 
 static gchar* dhcpcstatestrs[] = { [DHCP4CS_IDLE] = "idle", [DHCP4CS_DISCOVERING
 		] = "discovering", [DHCP4CS_REQUESTING ] = "requesting",
-		[DHCP4CS_CONFIGURED] = "configured" };
+		[DHCP4CS_CONFIGURED ] = "configured" };
 
 static void network_dhcp_dumpstatus_addip4addr(JsonBuilder* builder,
 		guint8* addr) {
