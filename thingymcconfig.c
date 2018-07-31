@@ -7,6 +7,7 @@
 #include "network.h"
 #include "http.h"
 #include "apps.h"
+#include "args.h"
 
 static GMainLoop* mainloop;
 
@@ -28,6 +29,8 @@ int main(int argc, char** argv) {
 	gchar* key = NULL;
 	int ret = 0;
 
+	gchar* arg_config;
+
 	GError* error = NULL;
 	GOptionEntry entries[] = {
 	// ?display? stuff
@@ -43,7 +46,7 @@ int main(int argc, char** argv) {
 			// crypto options
 			{ "cert", 'c', 0, G_OPTION_ARG_STRING, &cert, "device certificate",
 			NULL }, { "key", 'k', 0, G_OPTION_ARG_STRING, &key, "private key",
-			NULL },
+			NULL }, ARGS_CONFIG,
 #ifdef DEVELOPMENT
 			{ "nonetwork", 0, 0, G_OPTION_ARG_NONE, &nonetwork,
 					"no networking, for local testing", NULL }, { "noap", 0, 0,
@@ -65,6 +68,12 @@ int main(int argc, char** argv) {
 		goto err_args;
 	}
 
+	if (arg_config == NULL) {
+		g_message("config not specified");
+		ret = 1;
+		goto err_args;
+	}
+
 #if 0
 	if (cert == NULL || key == NULL) {
 		g_message("device certificate or private key not specified");
@@ -75,7 +84,7 @@ int main(int argc, char** argv) {
 
 	mainloop = g_main_loop_new(NULL, FALSE);
 
-	config_init();
+	config_init(arg_config);
 	ctrl_init();
 	apps_init((const gchar**) apps);
 

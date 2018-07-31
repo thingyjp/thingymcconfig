@@ -2,7 +2,7 @@
 #include "config.h"
 #include "jsonbuilderutils.h"
 
-static char* cfgpath = "./config.json";
+static const char* cfgpath;
 static struct config* cfg = NULL;
 
 #define NETWORKCONFIG "network_config"
@@ -23,7 +23,9 @@ static void config_save() {
 	g_free(json);
 }
 
-void config_init() {
+void config_init(const gchar* configpath) {
+	cfgpath = configpath;
+
 	cfg = g_malloc0(sizeof(*cfg));
 
 	gchar* cfgjson;
