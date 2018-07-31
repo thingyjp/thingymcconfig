@@ -33,20 +33,8 @@ int main(int argc, char** argv) {
 
 	GError* error = NULL;
 	GOptionEntry entries[] = {
-	// ?display? stuff
-			{ "nameprefix", 'n', 0, G_OPTION_ARG_STRING, &nameprefix,
-					"name prefix", NULL },
-			// networking stuff
-			{ "interface", 'i', 0, G_OPTION_ARG_STRING, &interface, "interface",
-			NULL }, { "waitforinterface", 'w', 0, G_OPTION_ARG_NONE,
-					&waitforinterface, "wait for interface to appear", NULL },
-			// apps
-			{ "app", 'a', 0, G_OPTION_ARG_STRING_ARRAY, &apps,
-					"register an app", NULL },
-			// crypto options
-			{ "cert", 'c', 0, G_OPTION_ARG_STRING, &cert, "device certificate",
-			NULL }, { "key", 'k', 0, G_OPTION_ARG_STRING, &key, "private key",
-			NULL }, ARGS_CONFIG,
+	ARGS_NAMEPREFIX, ARGS_INTERFACE, ARGS_WAITFORINTERFACE, ARGS_APP, ARGS_CERT,
+	ARGS_KEY, ARGS_CONFIG,
 #ifdef DEVELOPMENT
 			{ "nonetwork", 0, 0, G_OPTION_ARG_NONE, &nonetwork,
 					"no networking, for local testing", NULL }, { "noap", 0, 0,
