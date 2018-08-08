@@ -4,6 +4,7 @@
 #include "apps.h"
 #include "include/thingymcconfig/ctrl.h"
 #include "utils.h"
+#include "tbus.h"
 
 static GPtrArray* clientconnections;
 static GHashTable* clientappmapping;
@@ -34,29 +35,14 @@ static gboolean ctrl_send_appconfig(GSocketConnection* connection) {
 }
 
 static gboolean ctrl_send_networkstate(GSocketConnection* connection) {
-	gboolean ret = TRUE;
-
-	GByteArray* pktbuff = g_byte_array_new();
-
-	struct thingymcconfig_ctrl_field fields[] = { { .type =
-	THINGYMCCONFIG_FIELDTYPE_NETWORKSTATEUPDATE_SUPPLICANTSTATE }, { .type =
-	THINGYMCCONFIG_FIELDTYPE_NETWORKSTATEUPDATE_DHCPSTATE } };
-
-	struct thingymcconfig_ctrl_msgheader msghdr = { .type =
-	THINGYMCCONFIG_MSGTYPE_EVENT_NETWORKSTATEUPDATE, .numfields = G_N_ELEMENTS(
-			fields) + 1 };
-
-	g_byte_array_append(pktbuff, (void*) &msghdr, sizeof(msghdr));
-	g_byte_array_append(pktbuff, (void*) fields, sizeof(fields));
-	g_byte_array_append(pktbuff, (void*) &thingymcconfig_terminator,
-			sizeof(thingymcconfig_terminator));
+	struct tbus_fieldandbuff fields[] = { { .field = { .type =
+	THINGYMCCONFIG_FIELDTYPE_NETWORKSTATEUPDATE_SUPPLICANTSTATE } }, { .field =
+			{ .type =
+			THINGYMCCONFIG_FIELDTYPE_NETWORKSTATEUPDATE_DHCPSTATE } } };
 
 	GOutputStream* os = g_io_stream_get_output_stream(G_IO_STREAM(connection));
-	if (g_output_stream_write(os, pktbuff->data, pktbuff->len, NULL, NULL)
-			!= pktbuff->len)
-		ret = FALSE;
-	g_byte_array_free(pktbuff, TRUE);
-	return ret;
+	return tbus_writemsg(os, THINGYMCCONFIG_MSGTYPE_EVENT_NETWORKSTATEUPDATE,
+			fields, G_N_ELEMENTS(fields));
 }
 
 static void ctrl_disconnectapp(GSocketConnection* connection) {

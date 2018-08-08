@@ -18,6 +18,9 @@ struct tbus_messageprocessor {
 	tbus_emitter emitter;
 };
 
+gboolean tbus_writemsg(GOutputStream* os, unsigned char type,
+		struct tbus_fieldandbuff* fields, int numfields);
+
 gboolean tbus_readmsg(GInputStream* is,
 		struct tbus_messageprocessor* msgprocessors, int numprocessors,
 		gpointer user_data);

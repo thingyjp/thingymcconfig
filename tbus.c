@@ -1,5 +1,39 @@
 #include "tbus.h"
 
+gboolean tbus_writemsg(GOutputStream* os, unsigned char type,
+		struct tbus_fieldandbuff* fields, int numfields) {
+	gboolean ret = FALSE;
+
+	GByteArray* pktbuff = g_byte_array_new();
+
+	struct thingymcconfig_ctrl_msgheader msghdr = { .type = type, .numfields =
+			numfields + 1 };
+	g_byte_array_append(pktbuff, (void*) &msghdr, sizeof(msghdr));
+
+	for (int f = 0; f < numfields; f++) {
+		struct tbus_fieldandbuff* field = fields + f;
+		g_byte_array_append(pktbuff, (void*) &field->field,
+				sizeof(field->field));
+		if (field->field.buflen > 0)
+			g_byte_array_append(pktbuff, field->buff, field->field.buflen);
+	}
+
+	g_byte_array_append(pktbuff, (void*) &thingymcconfig_terminator,
+			sizeof(thingymcconfig_terminator));
+
+	if (g_output_stream_write(os, pktbuff->data, pktbuff->len, NULL, NULL)
+			!= pktbuff->len) {
+		goto err;
+	}
+
+	ret = TRUE;
+
+	err: //
+	g_byte_array_free(pktbuff, TRUE);
+
+	return ret;
+}
+
 gboolean tbus_readmsg(GInputStream* is,
 		struct tbus_messageprocessor* msgprocessors, int numprocessors,
 		gpointer user_data) {
