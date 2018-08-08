@@ -20,6 +20,8 @@
 #define THINGYMCCONFIG_NULL                                           0
 #define THINGYMCCONFIG_OK                                             1
 #define THINGYMCCONFIG_ERR                                            2
+#define THINGYMCCONFIG_PENDING                                        3
+#define THINGYMCCONFIG_ACTIVE                                         4
 #define THINGYMCCONFIG_GENERICEND                                     31
 
 #define THINGYMCCONFIG_MSGTYPE_EVENT_NETWORKSTATEUPDATE               1
