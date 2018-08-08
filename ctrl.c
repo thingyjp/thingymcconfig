@@ -69,9 +69,8 @@ static gboolean ctrl_readfields(GInputStream* is,
 			break;
 		}
 
-		g_message("have field; type: %d, v0: %d, v1: %d, v2: %d",
-				(int ) field.type, (int ) field.v0, (int ) field.v1,
-				(int ) field.v2);
+		g_message("have field; type: %d, buflen: %d, v0: %d, v1: %d",
+				(int ) field.type, (int) field.buflen, (int ) field.v0, (int ) field.v1);
 
 		if (fieldcallback != NULL)
 			fieldcallback(&field, user_data);

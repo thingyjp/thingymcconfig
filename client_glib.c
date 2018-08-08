@@ -107,9 +107,8 @@ static gboolean thingymcconfig_client_socketcallback(GIOChannel *source,
 		if (g_input_stream_read(is, &field, sizeof(field), NULL, NULL)
 				!= sizeof(field))
 			goto err;
-		g_message("have field; type: %d, v0: %d, v1: %d, v2: %d",
-				(int ) field.type, (int ) field.v0, (int ) field.v1,
-				(int ) field.v2);
+		g_message("have field; type: %d, buflen: %d, v0: %d, v1: %d",
+				(int ) field.type, (int) field.buflen, (int ) field.v0, (int ) field.v1);
 		fieldcount++;
 		if (field.type == THINGYMCCONFIG_FIELDTYPE_TERMINATOR) {
 			terminated = TRUE;

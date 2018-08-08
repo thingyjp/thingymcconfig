@@ -5,12 +5,13 @@
 
 /* Messages to/from the control socket look like this:
  *
- * [ msg hdr    ]
- * [ field 0    ]
- * [ field 1    ]
+ * [ msg hdr                  ]
+ * [ field 0                  ]
+ * [ optional freeform buffer ]
+ * [ field 1                  ]
  * .
  * .
- * [ terminator ]
+ * [ terminator               ]
  */
 
 /* Generic states, these should be valid for anywhere a state can
@@ -24,8 +25,9 @@
 #define THINGYMCCONFIG_ACTIVE                                         4
 #define THINGYMCCONFIG_GENERICEND                                     31
 
-#define THINGYMCCONFIG_MSGTYPE_EVENT_NETWORKSTATEUPDATE               1
-#define THINGYMCCONFIG_MSGTYPE_EVENT_APPSTATEUPDATE                   2
+#define THINGYMCCONFIG_MSGTYPE_CONFIG_APPS                            1
+#define THINGYMCCONFIG_MSGTYPE_EVENT_NETWORKSTATEUPDATE               2
+#define THINGYMCCONFIG_MSGTYPE_EVENT_APPSTATEUPDATE                   3
 
 #define THINGYMCCONFIG_FIELDTYPE_NETWORKSTATEUPDATE_SUPPLICANTSTATE   1
 #define THINGYMCCONFIG_FIELDTYPE_NETWORKSTATEUPDATE_DHCPSTATE         2
@@ -57,21 +59,23 @@ struct __attribute__((__packed__)) thingymcconfig_ctrl_msgheader {
 
 struct __attribute__((__packed__)) thingymcconfig_ctrl_field {
 	unsigned char type;
-	unsigned char v0, v1, v2;
+	unsigned char buflen;
+	unsigned char v0, v1;
 };
 
 struct __attribute__((__packed__)) thingymcconfig_ctrl_field_index {
 	unsigned char type;
+	unsigned char buflen;
 	unsigned char index;
 	// pad up to 32 bits
-	unsigned char pad0, pad1;
+	unsigned char pad0;
 };
 
 struct __attribute__((__packed__)) thingymcconfig_ctrl_field_stateanderror {
 	unsigned char type;
-	unsigned char state, error;
-	// pad up to 32 bits
-	unsigned char pad0;
+	unsigned char buflen;
+	unsigned char state;
+	unsigned char error;
 };
 
 static const struct thingymcconfig_ctrl_field thingymcconfig_terminator = {
