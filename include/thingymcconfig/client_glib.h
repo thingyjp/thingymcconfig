@@ -20,7 +20,7 @@ G_END_DECLS
 #define THINGYMCCONFIG_CLIENT_DETAIL_NETWORKSTATE_SUPPLICANTCONNECTED    "supplicantconnected"
 #define THINGYMCCONFIG_CLIENT_DETAIL_NETWORKSTATE_SUPPLICANTDISCONNECTED "supplicantdisconnected"
 
-ThingyMcConfigClient* thingymcconfig_client_new(void);
+ThingyMcConfigClient* thingymcconfig_client_new(const gchar* appname);
 void thingymcconfig_client_connect(ThingyMcConfigClient *client);
 void thingymcconfig_client_lazyconnect(ThingyMcConfigClient* client);
 void thingymcconfig_client_sendconnectivitystate(ThingyMcConfigClient* client,

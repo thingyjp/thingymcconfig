@@ -3,6 +3,7 @@
 
 #include "include/thingymcconfig/client_glib.h"
 #include "include/thingymcconfig/ctrl.h"
+#include "tbus.h"
 
 struct networkstate {
 	unsigned supplicantstate;
@@ -13,6 +14,8 @@ struct _ThingyMcConfigClient {
 	GObject parent_instance;
 	GSocketConnection* socketconnection;
 	struct networkstate networkstate;
+	const gchar* appname;
+	int appindex;
 };
 
 G_DEFINE_TYPE(ThingyMcConfigClient, thingymcconfig_client, G_TYPE_OBJECT)
@@ -26,25 +29,14 @@ static GQuark detail_daemon_connectfailed;
 static GQuark detail_networkstate_supplicant_connected;
 static GQuark detail_networkstate_supplicant_disconnected;
 
-typedef void (*thingymcconfig_client_fieldproc)(
-		struct thingymcconfig_ctrl_field* field, gpointer target);
-
-typedef void (*thingymcconfig_client_emitter)(ThingyMcConfigClient* client,
-		gpointer target);
-
-struct thingymcconfig_client_messageprocessor {
-	gsize allocsize;
-	thingymcconfig_client_fieldproc fieldprocessor;
-	thingymcconfig_client_emitter emitter;
-};
-
 static void thingymcconfig_client_fieldproc_networkstate(
-		struct thingymcconfig_ctrl_field* field, gpointer target) {
+		struct tbus_fieldandbuff* field, gpointer target) {
 	g_message("processing network state field");
 }
 
-static void thingymcconfig_client_emitter_networkstate(
-		ThingyMcConfigClient* client, gpointer target) {
+static void thingymcconfig_client_emitter_networkstate(gpointer target,
+		gpointer user_data) {
+	ThingyMcConfigClient* client = user_data;
 	g_message("emitting network state");
 	struct networkstate* newnetworkstate = target;
 	if (memcmp(&client->networkstate, newnetworkstate, sizeof(*newnetworkstate))
@@ -71,7 +63,7 @@ static void thingymcconfig_client_emitter_networkstate(
 			sizeof(client->networkstate));
 }
 
-static struct thingymcconfig_client_messageprocessor msgproc[] = {
+static struct tbus_messageprocessor msgproc[] = {
 		[THINGYMCCONFIG_MSGTYPE_EVENT_NETWORKSTATEUPDATE ] = { .allocsize =
 				sizeof(struct networkstate), .fieldprocessor =
 				thingymcconfig_client_fieldproc_networkstate, .emitter =
@@ -83,55 +75,7 @@ static gboolean thingymcconfig_client_socketcallback(GIOChannel *source,
 	g_message("message on ctrl socket");
 	GInputStream* is = g_io_stream_get_input_stream(
 			G_IO_STREAM(client->socketconnection));
-
-	struct thingymcconfig_ctrl_msgheader msghdr;
-	if (g_input_stream_read(is, &msghdr, sizeof(msghdr), NULL, NULL)
-			!= sizeof(msghdr))
-		goto err;
-
-	g_message("have message type %d with %d fields", (int ) msghdr.type,
-			(int ) msghdr.numfields);
-
-	struct thingymcconfig_client_messageprocessor* processor = NULL;
-	gpointer msgstruct = NULL;
-	if (msghdr.type < G_N_ELEMENTS(msgproc)) {
-		processor = &msgproc[msghdr.type];
-		msgstruct = g_malloc0(processor->allocsize);
-	}
-
-	int fieldcount = 0;
-	gboolean terminated;
-
-	for (int f = 0; f < msghdr.numfields; f++) {
-		struct thingymcconfig_ctrl_field field;
-		if (g_input_stream_read(is, &field, sizeof(field), NULL, NULL)
-				!= sizeof(field))
-			goto err;
-		g_message("have field; type: %d, buflen: %d, v0: %d, v1: %d",
-				(int ) field.type, (int) field.buflen, (int ) field.v0, (int ) field.v1);
-		fieldcount++;
-		if (field.type == THINGYMCCONFIG_FIELDTYPE_TERMINATOR) {
-			terminated = TRUE;
-			break;
-		}
-
-		if (processor != NULL && processor->fieldprocessor != NULL)
-			processor->fieldprocessor(&field, msgstruct);
-	}
-
-	if (fieldcount != msghdr.numfields)
-		g_message("bad number of fields, expected %d but got %d",
-				(int ) msghdr.numfields, fieldcount);
-	if (!terminated)
-		g_message("didn't see terminator");
-
-	if (processor != NULL && processor->emitter != NULL)
-		processor->emitter(client, msgstruct);
-
-	return TRUE;
-	err: //
-//g_main_loop_quit(mainloop);
-	return FALSE;
+	return tbus_readmsg(is, msgproc, G_N_ELEMENTS(msgproc), client);
 }
 
 static void thingymcconfig_client_class_init(ThingyMcConfigClientClass *klass) {
@@ -163,12 +107,16 @@ static void thingymcconfig_client_class_init(ThingyMcConfigClientClass *klass) {
 }
 
 static void thingymcconfig_client_init(ThingyMcConfigClient *self) {
+	self->appindex = -1;
 }
 
-#define APPINDEX 0
+#define APPINDEX 1
 
-ThingyMcConfigClient* thingymcconfig_client_new(void) {
-	return g_object_new(THINGYMCCONFIG_TYPE_CLIENT, NULL);
+ThingyMcConfigClient* thingymcconfig_client_new(const gchar* appname) {
+	ThingyMcConfigClient* client = g_object_new(THINGYMCCONFIG_TYPE_CLIENT,
+	NULL);
+	client->appname = appname;
+	return client;
 }
 
 void thingymcconfig_client_connect(ThingyMcConfigClient *client) {

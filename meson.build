@@ -18,6 +18,7 @@ src = ['thingymcconfig.c',
        'logging.c',
        'ctrl.c',
        'apps.c',
+       'tbus.c',
        'hostap/src/common/wpa_ctrl.c',
        'hostap/src/utils/os_unix.c']
        
@@ -43,7 +44,7 @@ install_headers('include/thingymcconfig/ctrl.h', subdir : 'thingymcconfig')
 
 client_glib_deps = [ dependency('glib-2.0'),
                      dependency('gio-unix-2.0') ]
-client_glib_src = [ 'client_glib.c' ]
+client_glib_src = [ 'client_glib.c', 'tbus.c' ]
 client_glib_lib = shared_library('thingmcconfig_client_glib', client_glib_src,
                 dependencies : client_glib_deps,
                 install : true)

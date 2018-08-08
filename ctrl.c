@@ -9,6 +9,30 @@ static GPtrArray* clientconnections;
 static GHashTable* clientappmapping;
 static GSocketService* socketservice;
 
+static gboolean ctrl_send_appconfig(GSocketConnection* connection) {
+	gboolean ret = TRUE;
+
+	GByteArray* pktbuff = g_byte_array_new();
+
+	struct thingymcconfig_ctrl_field fields[] = { };
+
+	struct thingymcconfig_ctrl_msgheader msghdr = { .type =
+	THINGYMCCONFIG_MSGTYPE_CONFIG_APPS, .numfields = G_N_ELEMENTS(
+			fields) + 1 };
+
+	g_byte_array_append(pktbuff, (void*) &msghdr, sizeof(msghdr));
+	g_byte_array_append(pktbuff, (void*) fields, sizeof(fields));
+	g_byte_array_append(pktbuff, (void*) &thingymcconfig_terminator,
+			sizeof(thingymcconfig_terminator));
+
+	GOutputStream* os = g_io_stream_get_output_stream(G_IO_STREAM(connection));
+	if (g_output_stream_write(os, pktbuff->data, pktbuff->len, NULL, NULL)
+			!= pktbuff->len)
+		ret = FALSE;
+	g_byte_array_free(pktbuff, TRUE);
+	return ret;
+}
+
 static gboolean ctrl_send_networkstate(GSocketConnection* connection) {
 	gboolean ret = TRUE;
 
@@ -70,7 +94,8 @@ static gboolean ctrl_readfields(GInputStream* is,
 		}
 
 		g_message("have field; type: %d, buflen: %d, v0: %d, v1: %d",
-				(int ) field.type, (int) field.buflen, (int ) field.v0, (int ) field.v1);
+				(int ) field.type, (int ) field.buflen, (int ) field.v0,
+				(int ) field.v1);
 
 		if (fieldcallback != NULL)
 			fieldcallback(&field, user_data);
@@ -161,7 +186,7 @@ static gboolean ctrl_incomingcallback(GSocketService *service,
 		gpointer user_data) {
 	g_message("incoming control socket connection");
 
-	if (ctrl_send_networkstate(connection)) {
+	if (ctrl_send_appconfig(connection) && ctrl_send_networkstate(connection)) {
 		g_object_ref(connection);
 		g_ptr_array_add(clientconnections, connection);
 		utils_addwatchforsocket(g_socket_connection_get_socket(connection),
