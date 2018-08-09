@@ -1,6 +1,6 @@
 #include "apps.h"
 #include "jsonbuilderutils.h"
-#include "include/thingymcconfig/ctrl.h"
+#include "tbus.h"
 
 static GPtrArray* apps;
 
@@ -120,4 +120,20 @@ void apps_dumpstatus(JsonBuilder* builder) {
 	json_builder_begin_array(builder);
 	g_ptr_array_foreach(apps, apps_dumpapp, builder);
 	json_builder_end_array(builder);
+}
+
+gboolean apps_ctrl_sendconfig(GOutputStream* os) {
+	struct tbus_fieldandbuff* fields = g_malloc0(sizeof(*fields) * apps->len);
+	for (int i = 0; i < apps->len; i++) {
+		struct tbus_fieldandbuff* f = fields + i;
+		struct apps_app* appstate = g_ptr_array_index(apps, i);
+		f->field.index.type = THINGMCCONFIG_FIELDTYPE_CONFIG_APPS_APP;
+		f->field.index.index = appstate->index;
+		f->buff = appstate->name;
+		f->field.index.buflen = strlen(appstate->name);
+	}
+	gboolean ret = tbus_writemsg(os, THINGYMCCONFIG_MSGTYPE_CONFIG_APPS, fields,
+			apps->len);
+	g_free(fields);
+	return ret;
 }

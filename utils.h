@@ -1,5 +1,6 @@
 #pragma once
-#include <json-glib/json-glib.h>
+#include <gio/gio.h>
+#include "include/thingymcconfig/utils.h"
 
 guint utils_addwatchforsocket(GSocket* sock, GIOCondition cond,
 		GIOFunc callback, gpointer user_data);

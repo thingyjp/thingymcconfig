@@ -40,11 +40,11 @@ add_global_arguments('-DCONFIG_CTRL_IFACE_UNIX', language : 'c')
 
 executable('thingymcconfig', src, include_directories : include_directories(hostapincdir + jsonmacrosincdir),
            dependencies : deps, install : true, install_dir : 'sbin')
-install_headers('include/thingymcconfig/ctrl.h', subdir : 'thingymcconfig')
+install_headers(['include/thingymcconfig/ctrl.h', 'include/thingymcconfig/utils.h'], subdir : 'thingymcconfig')
 
 client_glib_deps = [ dependency('glib-2.0'),
                      dependency('gio-unix-2.0') ]
-client_glib_src = [ 'client_glib.c', 'tbus.c' ]
+client_glib_src = [ 'client_glib.c', 'tbus.c', 'utils.c' ]
 client_glib_lib = shared_library('thingmcconfig_client_glib', client_glib_src,
                 dependencies : client_glib_deps,
                 install : true)

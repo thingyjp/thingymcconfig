@@ -29,6 +29,8 @@
 #define THINGYMCCONFIG_MSGTYPE_EVENT_NETWORKSTATEUPDATE               2
 #define THINGYMCCONFIG_MSGTYPE_EVENT_APPSTATEUPDATE                   3
 
+#define THINGMCCONFIG_FIELDTYPE_CONFIG_APPS_APP                       1
+
 #define THINGYMCCONFIG_FIELDTYPE_NETWORKSTATEUPDATE_SUPPLICANTSTATE   1
 #define THINGYMCCONFIG_FIELDTYPE_NETWORKSTATEUPDATE_DHCPSTATE         2
 
@@ -57,7 +59,7 @@ struct __attribute__((__packed__)) thingymcconfig_ctrl_msgheader {
  * to field type 0 in message type 1.
  */
 
-struct __attribute__((__packed__)) thingymcconfig_ctrl_field {
+struct __attribute__((__packed__)) thingymcconfig_ctrl_field_raw {
 	unsigned char type;
 	unsigned char buflen;
 	unsigned char v0, v1;
@@ -78,7 +80,15 @@ struct __attribute__((__packed__)) thingymcconfig_ctrl_field_stateanderror {
 	unsigned char error;
 };
 
-static const struct thingymcconfig_ctrl_field thingymcconfig_terminator = {
-		.type = THINGYMCCONFIG_FIELDTYPE_TERMINATOR };
+union _thingymcconfig_ctrl_field {
+	struct thingymcconfig_ctrl_field_raw raw;
+	struct thingymcconfig_ctrl_field_index index;
+	struct thingymcconfig_ctrl_field_stateanderror stateanderror;
+};
+
+typedef union _thingymcconfig_ctrl_field thingymcconfig_ctrl_field;
+
+static const thingymcconfig_ctrl_field thingymcconfig_terminator = { .raw = {
+		.type = THINGYMCCONFIG_FIELDTYPE_TERMINATOR } };
 
 #endif

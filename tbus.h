@@ -4,7 +4,7 @@
 #include "include/thingymcconfig/ctrl.h"
 
 struct tbus_fieldandbuff {
-	struct thingymcconfig_ctrl_field field;
+	thingymcconfig_ctrl_field field;
 	guint8* buff;
 };
 

@@ -10,35 +10,11 @@ static GPtrArray* clientconnections;
 static GHashTable* clientappmapping;
 static GSocketService* socketservice;
 
-static gboolean ctrl_send_appconfig(GSocketConnection* connection) {
-	gboolean ret = TRUE;
-
-	GByteArray* pktbuff = g_byte_array_new();
-
-	struct thingymcconfig_ctrl_field fields[] = { };
-
-	struct thingymcconfig_ctrl_msgheader msghdr = { .type =
-	THINGYMCCONFIG_MSGTYPE_CONFIG_APPS, .numfields = G_N_ELEMENTS(
-			fields) + 1 };
-
-	g_byte_array_append(pktbuff, (void*) &msghdr, sizeof(msghdr));
-	g_byte_array_append(pktbuff, (void*) fields, sizeof(fields));
-	g_byte_array_append(pktbuff, (void*) &thingymcconfig_terminator,
-			sizeof(thingymcconfig_terminator));
-
-	GOutputStream* os = g_io_stream_get_output_stream(G_IO_STREAM(connection));
-	if (g_output_stream_write(os, pktbuff->data, pktbuff->len, NULL, NULL)
-			!= pktbuff->len)
-		ret = FALSE;
-	g_byte_array_free(pktbuff, TRUE);
-	return ret;
-}
-
 static gboolean ctrl_send_networkstate(GSocketConnection* connection) {
-	struct tbus_fieldandbuff fields[] = { { .field = { .type =
-	THINGYMCCONFIG_FIELDTYPE_NETWORKSTATEUPDATE_SUPPLICANTSTATE } }, { .field =
-			{ .type =
-			THINGYMCCONFIG_FIELDTYPE_NETWORKSTATEUPDATE_DHCPSTATE } } };
+	struct tbus_fieldandbuff fields[] = { { .field = { .raw = { .type =
+	THINGYMCCONFIG_FIELDTYPE_NETWORKSTATEUPDATE_SUPPLICANTSTATE } } }, {
+			.field = { .raw = { .type =
+			THINGYMCCONFIG_FIELDTYPE_NETWORKSTATEUPDATE_DHCPSTATE } } } };
 
 	GOutputStream* os = g_io_stream_get_output_stream(G_IO_STREAM(connection));
 	return tbus_writemsg(os, THINGYMCCONFIG_MSGTYPE_EVENT_NETWORKSTATEUPDATE,
@@ -58,50 +34,11 @@ static void ctrl_disconnectapp(GSocketConnection* connection) {
 	g_object_unref(connection);
 }
 
-static gboolean ctrl_readfields(GInputStream* is,
-		struct thingymcconfig_ctrl_msgheader* msghdr,
-		void (*fieldcallback)(struct thingymcconfig_ctrl_field* field,
-				gpointer user_data), gpointer user_data) {
-
-	gboolean ret = FALSE;
-
-	int fields = 0;
-	gboolean terminated = FALSE;
-	for (int f = 0; f < msghdr->numfields; f++) {
-		struct thingymcconfig_ctrl_field field;
-		if (g_input_stream_read(is, &field, sizeof(field), NULL, NULL)
-				!= sizeof(field))
-			goto out;
-
-		fields++;
-		if (field.type == THINGYMCCONFIG_FIELDTYPE_TERMINATOR) {
-			terminated = TRUE;
-			break;
-		}
-
-		g_message("have field; type: %d, buflen: %d, v0: %d, v1: %d",
-				(int ) field.type, (int ) field.buflen, (int ) field.v0,
-				(int ) field.v1);
-
-		if (fieldcallback != NULL)
-			fieldcallback(&field, user_data);
-	}
-
-	if (fields != msghdr->numfields || !terminated) {
-		g_message("client is out of sync");
-		goto out;
-	}
-
-	ret = TRUE;
-
-	out: //
-	return ret;
-}
-
-static void ctrl_appincallback_appstatefieldcallback(
-		struct thingymcconfig_ctrl_field* field, gpointer user_data) {
-	struct apps_appstateupdate* appstate = user_data;
-	switch (field->type) {
+static void ctrl_fieldproc_appstate(struct tbus_fieldandbuff* field,
+		gpointer target) {
+	g_message("processing app state field");
+	struct apps_appstateupdate* appstate = target;
+	switch (field->field.raw.type) {
 	case THINGYMCCONFIG_FIELDTYPE_APPSTATEUPDATE_APPINDEX:
 		appstate->appindex =
 				((struct thingymcconfig_ctrl_field_index*) field)->index;
@@ -123,48 +60,37 @@ static void ctrl_appincallback_appstatefieldcallback(
 	}
 }
 
+static void ctrl_emitter_appstate(gpointer target, gpointer user_data) {
+	struct apps_appstateupdate* appstate = target;
+	GSocketConnection* connection = user_data;
+	gpointer existingmapping = g_hash_table_lookup(clientappmapping,
+			connection);
+	if (existingmapping != NULL) {
+		guint index = GPOINTER_TO_UINT(existingmapping);
+		if (appstate->appindex != index) {
+			g_message("app has mysteriously changed it's index");
+		}
+	} else {
+		gpointer index = GUINT_TO_POINTER((guint ) appstate->appstate);
+		g_hash_table_insert(clientappmapping, connection, index);
+	}
+	apps_onappstateupdate(appstate);
+}
+
+static struct tbus_messageprocessor msgproc[] = {
+		[THINGYMCCONFIG_MSGTYPE_EVENT_APPSTATEUPDATE] = { .allocsize =
+				sizeof(struct apps_appstateupdate), .fieldprocessor =
+				ctrl_fieldproc_appstate, .emitter = ctrl_emitter_appstate } };
+
 static gboolean ctrl_appincallback(GIOChannel *source, GIOCondition condition,
 		gpointer data) {
 	GSocketConnection* connection = data;
-
 	g_message("incoming data from app");
-
 	GInputStream* is = g_io_stream_get_input_stream(G_IO_STREAM(connection));
-	struct thingymcconfig_ctrl_msgheader msghdr;
-	if (g_input_stream_read(is, &msghdr, sizeof(msghdr), NULL, NULL)
-			!= sizeof(msghdr))
-		goto err;
-
-	if (msghdr.type == THINGYMCCONFIG_MSGTYPE_EVENT_APPSTATEUPDATE) {
-		struct apps_appstateupdate appstate;
-		memset(&appstate, 0, sizeof(appstate));
-		if (ctrl_readfields(is, &msghdr,
-				ctrl_appincallback_appstatefieldcallback, &appstate)) {
-
-			gpointer existingmapping = g_hash_table_lookup(clientappmapping,
-					connection);
-			if (existingmapping != NULL) {
-				guint index = GPOINTER_TO_UINT(existingmapping);
-				if (appstate.appindex != index) {
-					g_message("app has mysteriously changed it's index");
-					goto err;
-				}
-			} else {
-				gpointer index = GUINT_TO_POINTER((guint ) appstate.appstate);
-				g_hash_table_insert(clientappmapping, connection, index);
-			}
-
-			if (!apps_onappstateupdate(&appstate))
-				goto err;
-		} else
-			goto err;
-	} else if (!ctrl_readfields(is, &msghdr, NULL, NULL))
-		goto err;
-
-	return TRUE;
-	err: //
-	ctrl_disconnectapp(connection);
-	return FALSE;
+	gboolean ret = tbus_readmsg(is, msgproc, G_N_ELEMENTS(msgproc), connection);
+	if (!ret)
+		ctrl_disconnectapp(connection);
+	return ret;
 }
 
 static gboolean ctrl_incomingcallback(GSocketService *service,
@@ -172,7 +98,8 @@ static gboolean ctrl_incomingcallback(GSocketService *service,
 		gpointer user_data) {
 	g_message("incoming control socket connection");
 
-	if (ctrl_send_appconfig(connection) && ctrl_send_networkstate(connection)) {
+	GOutputStream* os = g_io_stream_get_output_stream(G_IO_STREAM(connection));
+	if (apps_ctrl_sendconfig(os) && ctrl_send_networkstate(connection)) {
 		g_object_ref(connection);
 		g_ptr_array_add(clientconnections, connection);
 		utils_addwatchforsocket(g_socket_connection_get_socket(connection),

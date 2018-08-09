@@ -1,4 +1,5 @@
 #include "tbus.h"
+#include "utils.h"
 
 gboolean tbus_writemsg(GOutputStream* os, unsigned char type,
 		struct tbus_fieldandbuff* fields, int numfields) {
@@ -14,8 +15,8 @@ gboolean tbus_writemsg(GOutputStream* os, unsigned char type,
 		struct tbus_fieldandbuff* field = fields + f;
 		g_byte_array_append(pktbuff, (void*) &field->field,
 				sizeof(field->field));
-		if (field->field.buflen > 0)
-			g_byte_array_append(pktbuff, field->buff, field->field.buflen);
+		if (field->field.raw.buflen > 0)
+			g_byte_array_append(pktbuff, field->buff, field->field.raw.buflen);
 	}
 
 	g_byte_array_append(pktbuff, (void*) &thingymcconfig_terminator,
@@ -39,6 +40,7 @@ gboolean tbus_readmsg(GInputStream* is,
 		gpointer user_data) {
 
 	gboolean ret = FALSE;
+	gpointer msgstruct = NULL;
 
 	struct thingymcconfig_ctrl_msgheader msghdr;
 	if (g_input_stream_read(is, &msghdr, sizeof(msghdr), NULL, NULL)
@@ -49,7 +51,6 @@ gboolean tbus_readmsg(GInputStream* is,
 			(int ) msghdr.numfields);
 
 	struct tbus_messageprocessor* processor = NULL;
-	gpointer msgstruct = NULL;
 	if (msghdr.type < numprocessors) {
 		processor = &msgprocessors[msghdr.type];
 		msgstruct = g_malloc0(processor->allocsize);
@@ -65,19 +66,23 @@ gboolean tbus_readmsg(GInputStream* is,
 				!= sizeof(fieldandbuff.field))
 			goto err;
 		g_message("have field; type: %d, buflen: %d, v0: %d, v1: %d",
-				(int ) fieldandbuff.field.type,
-				(int ) fieldandbuff.field.buflen, (int ) fieldandbuff.field.v0,
-				(int ) fieldandbuff.field.v1);
+				(int ) fieldandbuff.field.raw.type,
+				(int ) fieldandbuff.field.raw.buflen,
+				(int ) fieldandbuff.field.raw.v0,
+				(int ) fieldandbuff.field.raw.v1);
 
-		if (fieldandbuff.field.buflen != 0) {
-			fieldandbuff.buff = g_malloc0(fieldandbuff.field.buflen + 1);
-			g_input_stream_read(is, fieldandbuff.buff,
-					fieldandbuff.field.buflen, NULL, NULL);
+		gsize buflen = fieldandbuff.field.raw.buflen;
+		if (buflen > 0) {
+			fieldandbuff.buff = g_malloc0(buflen + 1);
+			if (g_input_stream_read(is, fieldandbuff.buff, buflen, NULL, NULL)
+					!= buflen)
+				goto err;
+			thingymcconfig_utils_hexdump(fieldandbuff.buff, buflen);
 		} else
 			fieldandbuff.buff = NULL;
 
 		fieldcount++;
-		if (fieldandbuff.field.type == THINGYMCCONFIG_FIELDTYPE_TERMINATOR) {
+		if (fieldandbuff.field.raw.type == THINGYMCCONFIG_FIELDTYPE_TERMINATOR) {
 			terminated = TRUE;
 			break;
 		}
@@ -98,5 +103,8 @@ gboolean tbus_readmsg(GInputStream* is,
 	ret = TRUE;
 
 	err: //
+
+	if (msgstruct != NULL)
+		g_free(msgstruct);
 	return ret;
 }
