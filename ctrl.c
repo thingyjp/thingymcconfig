@@ -2,24 +2,13 @@
 #include <gio/gunixsocketaddress.h>
 #include "ctrl.h"
 #include "apps.h"
-#include "include/thingymcconfig/ctrl.h"
+#include "network.h"
 #include "utils.h"
 #include "tbus.h"
 
 static GPtrArray* clientconnections;
 static GHashTable* clientappmapping;
 static GSocketService* socketservice;
-
-static gboolean ctrl_send_networkstate(GSocketConnection* connection) {
-	struct tbus_fieldandbuff fields[] = { { .field = { .raw = { .type =
-	THINGYMCCONFIG_FIELDTYPE_NETWORKSTATEUPDATE_SUPPLICANTSTATE } } }, {
-			.field = { .raw = { .type =
-			THINGYMCCONFIG_FIELDTYPE_NETWORKSTATEUPDATE_DHCPSTATE } } } };
-
-	GOutputStream* os = g_io_stream_get_output_stream(G_IO_STREAM(connection));
-	return tbus_writemsg(os, THINGYMCCONFIG_MSGTYPE_EVENT_NETWORKSTATEUPDATE,
-			fields, G_N_ELEMENTS(fields));
-}
 
 static void ctrl_disconnectapp(GSocketConnection* connection) {
 	gpointer existingmapping = g_hash_table_lookup(clientappmapping,
@@ -99,7 +88,7 @@ static gboolean ctrl_incomingcallback(GSocketService *service,
 	g_message("incoming control socket connection");
 
 	GOutputStream* os = g_io_stream_get_output_stream(G_IO_STREAM(connection));
-	if (apps_ctrl_sendconfig(os) && ctrl_send_networkstate(connection)) {
+	if (apps_ctrl_sendconfig(os) && network_ctrl_sendstate(os)) {
 		g_object_ref(connection);
 		g_ptr_array_add(clientconnections, connection);
 		utils_addwatchforsocket(g_socket_connection_get_socket(connection),
@@ -132,7 +121,8 @@ void ctrl_start() {
 static void ctrl_notifyclientofnetworkstatechange(gpointer data,
 		gpointer user_data) {
 	GSocketConnection* clientconnection = data;
-	ctrl_send_networkstate(clientconnection);
+	network_ctrl_sendstate(
+			g_io_stream_get_output_stream(G_IO_STREAM(clientconnection)));
 }
 
 void ctrl_onnetworkstatechange() {

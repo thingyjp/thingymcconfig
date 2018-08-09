@@ -13,6 +13,7 @@
 #include "network_dhcp.h"
 #include "config.h"
 #include "jsonbuilderutils.h"
+#include "tbus.h"
 #include "ctrl.h"
 
 #define NUMBEROFINTERFACESWHENCONFIGURED 2
@@ -264,4 +265,14 @@ static void network_checkconfigurationstate() {
 
 void network_onsupplicantstatechange(gboolean connected) {
 	network_checkconfigurationstate();
+}
+
+gboolean network_ctrl_sendstate(GOutputStream* os) {
+	struct tbus_fieldandbuff fields[] = { { .field = { .raw = { .type =
+	THINGYMCCONFIG_FIELDTYPE_NETWORKSTATEUPDATE_SUPPLICANTSTATE } } }, {
+			.field = { .raw = { .type =
+			THINGYMCCONFIG_FIELDTYPE_NETWORKSTATEUPDATE_DHCPSTATE } } } };
+
+	return tbus_writemsg(os, THINGYMCCONFIG_MSGTYPE_EVENT_NETWORKSTATEUPDATE,
+			fields, G_N_ELEMENTS(fields));
 }

@@ -4,13 +4,17 @@
 
 static GPtrArray* apps;
 
-struct apps_app {
-	guint index;
-	const gchar* name;
+struct apps_app_state {
 	unsigned char appstate;
 	unsigned char apperror;
 	unsigned char connectivity;
 	unsigned char connectivityerror;
+};
+
+struct apps_app {
+	guint index;
+	const gchar* name;
+	struct apps_app_state state;
 };
 
 static void apps_printapp(gpointer data, gpointer user_data) {
@@ -56,14 +60,14 @@ gboolean apps_onappstateupdate(const struct apps_appstateupdate* update) {
 	g_assert(appstate->index == 0 || appstate->index == update->appindex);
 
 	if (update->appstate != 0) {
-		appstate->appstate = update->appstate;
-		appstate->apperror = update->apperror;
+		appstate->state.appstate = update->appstate;
+		appstate->state.apperror = update->apperror;
 		g_message("updated app status for %s", appstate->name);
 	}
 
 	if (update->connectivitystate != 0) {
-		appstate->connectivity = update->connectivitystate;
-		appstate->connectivityerror = update->connectivityerror;
+		appstate->state.connectivity = update->connectivitystate;
+		appstate->state.connectivityerror = update->connectivityerror;
 		g_message("updated connectivity status for %s", appstate->name);
 	}
 
@@ -77,7 +81,7 @@ void apps_onappdisconnected(guint index) {
 	struct apps_app* appstate = apps_findappbyindex(index);
 	if (appstate != NULL) {
 		g_message("app %s disconnected, clearing state", appstate->name);
-		memset(appstate, 0, sizeof(*appstate));
+		memset(&appstate->state, 0, sizeof(appstate->state));
 	}
 }
 
@@ -98,18 +102,18 @@ static void apps_dumpapp(gpointer data, gpointer user_data) {
 
 	JSONBUILDER_START_OBJECT(builder, OBJECT_APPSTATE);
 	JSONBUILDER_ADD_STRING(builder, FIELD_STATE,
-			statestrings[MIN(app->appstate, G_N_ELEMENTS(statestrings))]);
-	JSONBUILDER_ADD_INT(builder, FIELD_CODE, app->appstate);
-	if (app->appstate == THINGYMCCONFIG_ERR)
-		JSONBUILDER_ADD_INT(builder, FIELD_ERROR, app->appstate);
+			statestrings[MIN(app->state.appstate, G_N_ELEMENTS(statestrings))]);
+	JSONBUILDER_ADD_INT(builder, FIELD_CODE, app->state.appstate);
+	if (app->state.appstate == THINGYMCCONFIG_ERR)
+		JSONBUILDER_ADD_INT(builder, FIELD_ERROR, app->state.appstate);
 	json_builder_end_object(builder);
 
 	JSONBUILDER_START_OBJECT(builder, OBJECT_CONNECTIVITY);
 	JSONBUILDER_ADD_STRING(builder, FIELD_STATE,
-			statestrings[MIN(app->connectivity, G_N_ELEMENTS(statestrings))]);
-	JSONBUILDER_ADD_INT(builder, FIELD_CODE, app->connectivity);
-	if (app->connectivity == THINGYMCCONFIG_ERR)
-		JSONBUILDER_ADD_INT(builder, FIELD_ERROR, app->connectivityerror);
+			statestrings[MIN(app->state.connectivity, G_N_ELEMENTS(statestrings))]);
+	JSONBUILDER_ADD_INT(builder, FIELD_CODE, app->state.connectivity);
+	if (app->state.connectivity == THINGYMCCONFIG_ERR)
+		JSONBUILDER_ADD_INT(builder, FIELD_ERROR, app->state.connectivityerror);
 	json_builder_end_object(builder);
 
 	json_builder_end_object(builder);

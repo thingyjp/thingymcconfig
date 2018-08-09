@@ -19,3 +19,4 @@ int network_startap(const gchar* nameprefix);
 int network_stopap(void);
 
 void network_dumpstatus(JsonBuilder* builder);
+gboolean network_ctrl_sendstate(GOutputStream* os);

@@ -29,6 +29,15 @@ static GQuark detail_daemon_connectfailed;
 static GQuark detail_networkstate_supplicant_connected;
 static GQuark detail_networkstate_supplicant_disconnected;
 
+static void thingymcconfig_client_fieldproc_appconfig(
+		struct tbus_fieldandbuff* field, gpointer target) {
+	g_message("processing app config field");
+}
+
+static void thingymcconfig_client_emitter_appconfig(gpointer target,
+		gpointer user_data) {
+}
+
 static void thingymcconfig_client_fieldproc_networkstate(
 		struct tbus_fieldandbuff* field, gpointer target) {
 	g_message("processing network state field");
@@ -64,6 +73,9 @@ static void thingymcconfig_client_emitter_networkstate(gpointer target,
 }
 
 static struct tbus_messageprocessor msgproc[] = {
+		[THINGYMCCONFIG_MSGTYPE_CONFIG_APPS ] = { .fieldprocessor =
+				thingymcconfig_client_fieldproc_appconfig, .emitter =
+				thingymcconfig_client_emitter_appconfig },
 		[THINGYMCCONFIG_MSGTYPE_EVENT_NETWORKSTATEUPDATE ] = { .allocsize =
 				sizeof(struct networkstate), .fieldprocessor =
 				thingymcconfig_client_fieldproc_networkstate, .emitter =
@@ -125,8 +137,6 @@ void thingymcconfig_client_connect(ThingyMcConfigClient *client) {
 	GSocketConnection* socketconnection = NULL;
 
 	g_signal_emit(client, signal_daemon, detail_daemon_connecting);
-	//g_signal_emit_by_name(client,
-	//		THINGYMCCONFIG_CLIENT_SIGNAL_DAEMON "::" THINGYMCCONFIG_CLIENT_DETAIL_DAEMON_CONNECTING);
 
 	GSocketAddress* socketaddress = g_unix_socket_address_new(
 	THINGYMCCONFIG_CTRLSOCKPATH);
