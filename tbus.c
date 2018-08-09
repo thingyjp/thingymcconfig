@@ -88,7 +88,7 @@ gboolean tbus_readmsg(GInputStream* is,
 		}
 
 		if (processor != NULL && processor->fieldprocessor != NULL)
-			processor->fieldprocessor(&fieldandbuff, msgstruct);
+			processor->fieldprocessor(&fieldandbuff, msgstruct, user_data);
 	}
 
 	if (fieldcount != msghdr.numfields)

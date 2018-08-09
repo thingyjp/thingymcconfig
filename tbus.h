@@ -8,7 +8,8 @@ struct tbus_fieldandbuff {
 	guint8* buff;
 };
 
-typedef void (*tbus_fieldproc)(struct tbus_fieldandbuff* field, gpointer target);
+typedef void (*tbus_fieldproc)(struct tbus_fieldandbuff* field, gpointer target,
+		gpointer user_data);
 
 typedef void (*tbus_emitter)(gpointer target, gpointer user_data);
 
@@ -24,3 +25,6 @@ gboolean tbus_writemsg(GOutputStream* os, unsigned char type,
 gboolean tbus_readmsg(GInputStream* is,
 		struct tbus_messageprocessor* msgprocessors, int numprocessors,
 		gpointer user_data);
+
+#define TBUS_INDEXFIELD(t, i) {.field = {.index = {.type = t, .index = i }}}
+#define TBUS_STATEFIELD(t, s, e) {.field = {.stateanderror = {.type = t, .state = s, .error = e}}}

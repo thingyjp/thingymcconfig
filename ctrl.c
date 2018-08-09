@@ -24,7 +24,7 @@ static void ctrl_disconnectapp(GSocketConnection* connection) {
 }
 
 static void ctrl_fieldproc_appstate(struct tbus_fieldandbuff* field,
-		gpointer target) {
+		gpointer target, gpointer user_data) {
 	g_message("processing app state field");
 	struct apps_appstateupdate* appstate = target;
 	switch (field->field.raw.type) {

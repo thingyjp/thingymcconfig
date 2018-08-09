@@ -30,16 +30,28 @@ static GQuark detail_networkstate_supplicant_connected;
 static GQuark detail_networkstate_supplicant_disconnected;
 
 static void thingymcconfig_client_fieldproc_appconfig(
-		struct tbus_fieldandbuff* field, gpointer target) {
+		struct tbus_fieldandbuff* field, gpointer target, gpointer user_data) {
 	g_message("processing app config field");
+	unsigned* index = target;
+	ThingyMcConfigClient* client = user_data;
+	if (strcmp(field->buff, client->appname) == 0) {
+		g_message("found our app index");
+		*index = field->field.index.index;
+	}
 }
 
 static void thingymcconfig_client_emitter_appconfig(gpointer target,
 		gpointer user_data) {
+	unsigned* index = target;
+	if (*index != 0) {
+		ThingyMcConfigClient* client = user_data;
+		client->appindex = *index;
+		g_signal_emit(client, signal_daemon, detail_daemon_connected);
+	}
 }
 
 static void thingymcconfig_client_fieldproc_networkstate(
-		struct tbus_fieldandbuff* field, gpointer target) {
+		struct tbus_fieldandbuff* field, gpointer target, gpointer user_data) {
 	g_message("processing network state field");
 }
 
@@ -73,9 +85,9 @@ static void thingymcconfig_client_emitter_networkstate(gpointer target,
 }
 
 static struct tbus_messageprocessor msgproc[] = {
-		[THINGYMCCONFIG_MSGTYPE_CONFIG_APPS ] = { .fieldprocessor =
-				thingymcconfig_client_fieldproc_appconfig, .emitter =
-				thingymcconfig_client_emitter_appconfig },
+		[THINGYMCCONFIG_MSGTYPE_CONFIG_APPS ] = { .allocsize = sizeof(unsigned),
+				.fieldprocessor = thingymcconfig_client_fieldproc_appconfig,
+				.emitter = thingymcconfig_client_emitter_appconfig },
 		[THINGYMCCONFIG_MSGTYPE_EVENT_NETWORKSTATEUPDATE ] = { .allocsize =
 				sizeof(struct networkstate), .fieldprocessor =
 				thingymcconfig_client_fieldproc_networkstate, .emitter =
@@ -122,8 +134,6 @@ static void thingymcconfig_client_init(ThingyMcConfigClient *self) {
 	self->appindex = -1;
 }
 
-#define APPINDEX 1
-
 ThingyMcConfigClient* thingymcconfig_client_new(const gchar* appname) {
 	ThingyMcConfigClient* client = g_object_new(THINGYMCCONFIG_TYPE_CLIENT,
 	NULL);
@@ -168,9 +178,7 @@ void thingymcconfig_client_connect(ThingyMcConfigClient *client) {
 	err_sock: //
 	err_connect: //
 
-	if (client->socketconnection)
-		g_signal_emit(client, signal_daemon, detail_daemon_connected);
-	else
+	if (!client->socketconnection)
 		g_signal_emit(client, signal_daemon, detail_daemon_connectfailed);
 }
 
@@ -180,47 +188,32 @@ void thingymcconfig_client_lazyconnect(ThingyMcConfigClient* client) {
 
 void thingymcconfig_client_sendconnectivitystate(ThingyMcConfigClient* client,
 		gboolean connected) {
-	struct thingymcconfig_ctrl_field_index appindex = { .type =
-	THINGYMCCONFIG_FIELDTYPE_APPSTATEUPDATE_APPINDEX, .index = APPINDEX };
-	struct thingymcconfig_ctrl_field_stateanderror connectivitystate = { .type =
-	THINGYMCCONFIG_FIELDTYPE_APPSTATEUPDATE_CONNECTIVITY, .state =
-			connected ? THINGYMCCONFIG_OK : THINGYMCCONFIG_ERR };
+	g_assert(client->socketconnection);
+	g_assert(client->appindex != -1);
 
-	struct thingymcconfig_ctrl_msgheader msghdr = { .type =
-	THINGYMCCONFIG_MSGTYPE_EVENT_APPSTATEUPDATE, .numfields = 3 };
-
+	struct tbus_fieldandbuff fields[] =
+			{
+							TBUS_INDEXFIELD(THINGYMCCONFIG_FIELDTYPE_APPSTATEUPDATE_APPINDEX, client->appindex),
+							TBUS_STATEFIELD(THINGYMCCONFIG_FIELDTYPE_APPSTATEUPDATE_CONNECTIVITY, connected ? THINGYMCCONFIG_OK : THINGYMCCONFIG_ERR, 0) };
 	GOutputStream* os = g_io_stream_get_output_stream(
 			G_IO_STREAM(client->socketconnection));
-	g_output_stream_write(os, (void*) &msghdr, sizeof(msghdr), NULL, NULL);
-	g_output_stream_write(os, (void*) &appindex, sizeof(appindex), NULL, NULL);
-	g_output_stream_write(os, (void*) &connectivitystate,
-			sizeof(connectivitystate),
-			NULL, NULL);
-	g_output_stream_write(os, (void*) &thingymcconfig_terminator,
-			sizeof(thingymcconfig_terminator), NULL, NULL);
-	g_output_stream_flush(os, NULL, NULL);
+	tbus_writemsg(os, THINGYMCCONFIG_MSGTYPE_EVENT_APPSTATEUPDATE, fields,
+			G_N_ELEMENTS(fields));
 }
 
 void thingymcconfig_client_sendappstate(ThingyMcConfigClient* client) {
 	g_assert(client->socketconnection);
+	g_assert(client->appindex != -1);
 
-	struct thingymcconfig_ctrl_field_index appindex = { .type =
-	THINGYMCCONFIG_FIELDTYPE_APPSTATEUPDATE_APPINDEX, .index = APPINDEX };
-	struct thingymcconfig_ctrl_field_stateanderror appstate = { .type =
-	THINGYMCCONFIG_FIELDTYPE_APPSTATEUPDATE_APPSTATE, .state =
-	THINGYMCCONFIG_OK };
-
-	struct thingymcconfig_ctrl_msgheader msghdr = { .type =
-	THINGYMCCONFIG_MSGTYPE_EVENT_APPSTATEUPDATE, .numfields = 3 };
+	struct tbus_fieldandbuff fields[] =
+			{
+							TBUS_INDEXFIELD(THINGYMCCONFIG_FIELDTYPE_APPSTATEUPDATE_APPINDEX, client->appindex),
+							TBUS_STATEFIELD(THINGYMCCONFIG_FIELDTYPE_APPSTATEUPDATE_APPSTATE,THINGYMCCONFIG_OK, 0 ) };
 
 	GOutputStream* os = g_io_stream_get_output_stream(
 			G_IO_STREAM(client->socketconnection));
-	g_output_stream_write(os, (void*) &msghdr, sizeof(msghdr), NULL, NULL);
-	g_output_stream_write(os, (void*) &appindex, sizeof(appindex), NULL, NULL);
-	g_output_stream_write(os, (void*) &appstate, sizeof(appstate), NULL, NULL);
-	g_output_stream_write(os, (void*) &thingymcconfig_terminator,
-			sizeof(thingymcconfig_terminator), NULL, NULL);
-	g_output_stream_flush(os, NULL, NULL);
+	tbus_writemsg(os, THINGYMCCONFIG_MSGTYPE_EVENT_APPSTATEUPDATE, fields,
+			G_N_ELEMENTS(fields));
 }
 
 void thingymcconfig_client_free(ThingyMcConfigClient *client) {
