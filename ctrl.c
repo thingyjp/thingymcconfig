@@ -10,7 +10,8 @@ static GPtrArray* clientconnections;
 static GHashTable* clientappmapping;
 static GSocketService* socketservice;
 
-static void ctrl_disconnectapp(GSocketConnection* connection) {
+static void ctrl_disconnectapp(gpointer data, gpointer user_data) {
+	GSocketConnection* connection = data;
 	gpointer existingmapping = g_hash_table_lookup(clientappmapping,
 			connection);
 	if (existingmapping != NULL) {
@@ -78,7 +79,7 @@ static gboolean ctrl_appincallback(GIOChannel *source, GIOCondition condition,
 	GInputStream* is = g_io_stream_get_input_stream(G_IO_STREAM(connection));
 	gboolean ret = tbus_readmsg(is, msgproc, G_N_ELEMENTS(msgproc), connection);
 	if (!ret)
-		ctrl_disconnectapp(connection);
+		ctrl_disconnectapp(connection, NULL);
 	return ret;
 }
 
@@ -135,5 +136,7 @@ void ctrl_stop() {
 	GFile* sockfile = g_file_new_for_path(THINGYMCCONFIG_CTRLSOCKPATH);
 	g_file_delete(sockfile, NULL, NULL);
 	g_object_unref(sockfile);
+
+	g_ptr_array_foreach(clientconnections, ctrl_disconnectapp, NULL);
 }
 

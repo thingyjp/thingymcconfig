@@ -99,7 +99,14 @@ static gboolean thingymcconfig_client_socketcallback(GIOChannel *source,
 	g_message("message on ctrl socket");
 	GInputStream* is = g_io_stream_get_input_stream(
 			G_IO_STREAM(client->socketconnection));
-	return tbus_readmsg(is, msgproc, G_N_ELEMENTS(msgproc), client);
+	gboolean ret = tbus_readmsg(is, msgproc, G_N_ELEMENTS(msgproc), client);
+	if (!ret) {
+		g_message("disconnected");
+		g_object_unref(client->socketconnection);
+		client->socketconnection = NULL;
+		g_signal_emit(client, signal_daemon, detail_daemon_disconnected);
+	}
+	return ret;
 }
 
 static void thingymcconfig_client_class_init(ThingyMcConfigClientClass *klass) {
