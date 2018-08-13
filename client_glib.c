@@ -53,6 +53,12 @@ static void thingymcconfig_client_emitter_appconfig(gpointer target,
 static void thingymcconfig_client_fieldproc_networkstate(
 		struct tbus_fieldandbuff* field, gpointer target, gpointer user_data) {
 	g_message("processing network state field");
+	struct networkstate* newnetworkstate = target;
+	switch (field->field.raw.type) {
+	case THINGYMCCONFIG_FIELDTYPE_NETWORKSTATEUPDATE_SUPPLICANTSTATE:
+		newnetworkstate->supplicantstate = field->field.stateanderror.state;
+		break;
+	}
 }
 
 static void thingymcconfig_client_emitter_networkstate(gpointer target,
