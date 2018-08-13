@@ -2,6 +2,7 @@
 #include <glib.h>
 #include <glib-unix.h>
 #include "buildconfig.h"
+#include "logging.h"
 #include "config.h"
 #include "ctrl.h"
 #include "network.h"
@@ -30,11 +31,12 @@ int main(int argc, char** argv) {
 	int ret = 0;
 
 	gchar* arg_config = NULL;
+	gchar* arg_logfile = NULL;
 
 	GError* error = NULL;
 	GOptionEntry entries[] = {
 	ARGS_NAMEPREFIX, ARGS_INTERFACE, ARGS_WAITFORINTERFACE, ARGS_APP, ARGS_CERT,
-	ARGS_KEY, ARGS_CONFIG,
+	ARGS_KEY, ARGS_CONFIG, ARGS_LOGFILE,
 #ifdef DEVELOPMENT
 			{ "nonetwork", 0, 0, G_OPTION_ARG_NONE, &nonetwork,
 					"no networking, for local testing", NULL }, { "noap", 0, 0,
@@ -72,6 +74,7 @@ int main(int argc, char** argv) {
 
 	mainloop = g_main_loop_new(NULL, FALSE);
 
+	logging_init(arg_logfile);
 	config_init(arg_config);
 	ctrl_init();
 	apps_init((const gchar**) apps);

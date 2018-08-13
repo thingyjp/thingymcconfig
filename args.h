@@ -10,3 +10,4 @@
 #define ARGS_CERT             {"cert", 'c', 0, G_OPTION_ARG_STRING, &cert, "device certificate", NULL}
 #define ARGS_KEY              {"key", 'k', 0, G_OPTION_ARG_STRING, &key, "private key", NULL}
 #define ARGS_CONFIG           {"config", 'f', 0, G_OPTION_ARG_FILENAME, &arg_config, "config file", NULL}
+#define ARGS_LOGFILE          {"logfile", 'l', 0, G_OPTION_ARG_FILENAME, &arg_logfile, "log file", NULL}
