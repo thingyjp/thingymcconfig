@@ -34,3 +34,4 @@ GPtrArray* network_wpasupplicant_getlastscanresults(void);
 void network_wpasupplicant_stop(struct wpa_ctrl* wpa_ctrl, GPid* pid);
 
 void network_wpasupplicant_dumpstatus(JsonBuilder* builder);
+int network_wpasupplicant_getstate();

@@ -4,6 +4,7 @@
 #include "network_priv.h"
 #include "utils.h"
 #include "jsonbuilderutils.h"
+#include "include/thingymcconfig/ctrl.h"
 
 #define ISOK(rsp) (strcmp(rsp, "OK") == 0)
 
@@ -383,4 +384,11 @@ void network_wpasupplicant_dumpstatus(JsonBuilder* builder) {
 		JSONBUILDER_ADD_STRING(builder, "lasterror", lasterror);
 
 	json_builder_end_object(builder);
+}
+
+int network_wpasupplicant_getstate() {
+	int ret = THINGYMCCONFIG_OK;
+	if (connected)
+		ret = THINGYMCCONFIG_ACTIVE;
+	return ret;
 }

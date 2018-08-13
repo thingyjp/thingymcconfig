@@ -268,10 +268,12 @@ void network_onsupplicantstatechange(gboolean connected) {
 }
 
 gboolean network_ctrl_sendstate(GOutputStream* os) {
-	struct tbus_fieldandbuff fields[] = { { .field = { .raw = { .type =
-	THINGYMCCONFIG_FIELDTYPE_NETWORKSTATEUPDATE_SUPPLICANTSTATE } } }, {
-			.field = { .raw = { .type =
-			THINGYMCCONFIG_FIELDTYPE_NETWORKSTATEUPDATE_DHCPSTATE } } } };
+
+	struct tbus_fieldandbuff fields[] =
+			{
+							TBUS_STATEFIELD(THINGYMCCONFIG_FIELDTYPE_NETWORKSTATEUPDATE_SUPPLICANTSTATE, network_wpasupplicant_getstate(), 0),
+					{ .field = { .raw = { .type =
+					THINGYMCCONFIG_FIELDTYPE_NETWORKSTATEUPDATE_DHCPSTATE } } } };
 
 	return tbus_writemsg(os, THINGYMCCONFIG_MSGTYPE_EVENT_NETWORKSTATEUPDATE,
 			fields, G_N_ELEMENTS(fields));
