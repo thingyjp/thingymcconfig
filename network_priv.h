@@ -2,4 +2,4 @@
 
 #define NETWORK_ERRMSG_FAILEDTOALLOCNLMSG "failed to allocate netlink message"
 
-void network_onsupplicantstatechange(gboolean connected);
+void network_onsupplicantstatechange();

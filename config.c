@@ -18,7 +18,7 @@ static void config_save() {
 	}
 
 	gsize jsonsz;
-	gchar* json = jsonbuilder_freetostring(jsonbuilder, &jsonsz);
+	gchar* json = jsonbuilder_freetostring(jsonbuilder, &jsonsz, FALSE);
 	g_file_set_contents(cfgpath, json, jsonsz, NULL);
 	g_free(json);
 }

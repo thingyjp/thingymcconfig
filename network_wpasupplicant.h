@@ -21,17 +21,25 @@ struct network_wpasupplicant_ie {
 	guint8 payloadlen;
 };
 
-void network_wpasupplicant_init(void);
-gboolean network_wpasupplicant_start(struct wpa_ctrl** wpa_ctrl,
-		struct wpa_ctrl** wpa_event, const char* interface, GPid* pid);
-void network_wpasupplicant_seties(struct wpa_ctrl* wpa_ctrl,
-		const struct network_wpasupplicant_ie* ies, unsigned numies);
-void network_wpasupplicant_scan(struct wpa_ctrl* wpa_ctrl);
-int network_wpasupplicant_addnetwork(struct wpa_ctrl* wpa_ctrl,
-		const gchar* ssid, const gchar* psk, unsigned mode);
-void network_wpasupplicant_selectnetwork(struct wpa_ctrl* wpa_ctrl, int which);
-GPtrArray* network_wpasupplicant_getlastscanresults(void);
-void network_wpasupplicant_stop(struct wpa_ctrl* wpa_ctrl, GPid* pid);
+struct network_wpasupplicant_instance {
+	struct wpa_ctrl* wpa_ctrl;
+	struct wpa_ctrl* wpa_event;
+	GPid pid;
+	gboolean connected;
+	gchar* lasterror;
+};
 
-void network_wpasupplicant_dumpstatus(JsonBuilder* builder);
-int network_wpasupplicant_getstate();
+void network_wpasupplicant_init(void);
+gboolean network_wpasupplicant_start(
+		struct network_wpasupplicant_instance* instance, const char* interface);
+void network_wpasupplicant_seties(
+		struct network_wpasupplicant_instance* instance,
+		const struct network_wpasupplicant_ie* ies, unsigned numies);
+void network_wpasupplicant_scan(struct network_wpasupplicant_instance* instance);
+int network_wpasupplicant_addnetwork(
+		struct network_wpasupplicant_instance* instance, const gchar* ssid,
+		const gchar* psk, unsigned mode);
+void network_wpasupplicant_selectnetwork(
+		struct network_wpasupplicant_instance* instance, int which);
+GPtrArray* network_wpasupplicant_getlastscanresults(void);
+void network_wpasupplicant_stop(struct network_wpasupplicant_instance* instance);

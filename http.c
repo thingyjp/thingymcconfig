@@ -26,7 +26,7 @@ static int http_handleconnection_debug(struct MHD_Connection* connection) {
 	json_builder_end_object(jsonbuilder);
 
 	gsize contentln;
-	char* content = jsonbuilder_freetostring(jsonbuilder, &contentln);
+	char* content = jsonbuilder_freetostring(jsonbuilder, &contentln, FALSE);
 
 	int ret = 0;
 	struct MHD_Response* response = MHD_create_response_from_buffer(contentln,
@@ -49,7 +49,7 @@ static int http_handleconnection_status(struct MHD_Connection* connection) {
 	json_builder_end_object(jsonbuilder);
 
 	gsize contentln;
-	char* content = jsonbuilder_freetostring(jsonbuilder, &contentln);
+	char* content = jsonbuilder_freetostring(jsonbuilder, &contentln, FALSE);
 
 	int ret = 0;
 	struct MHD_Response* response = MHD_create_response_from_buffer(contentln,
@@ -95,7 +95,7 @@ static int http_handleconnection_scan(struct MHD_Connection* connection) {
 	json_builder_end_object(jsonbuilder);
 
 	gsize jsonlen;
-	char* content = jsonbuilder_freetostring(jsonbuilder, &jsonlen);
+	char* content = jsonbuilder_freetostring(jsonbuilder, &jsonlen, FALSE);
 	struct MHD_Response* response = MHD_create_response_from_buffer(jsonlen,
 			(void*) content, MHD_RESPMEM_MUST_COPY);
 	if (response) {
@@ -153,7 +153,7 @@ static int http_handleconnection_configure(struct MHD_Connection* connection,
 	json_builder_add_boolean_value(jsonbuilder, configuring);
 	json_builder_end_object(jsonbuilder);
 	gsize contentln;
-	char* content = jsonbuilder_freetostring(jsonbuilder, &contentln);
+	char* content = jsonbuilder_freetostring(jsonbuilder, &contentln, FALSE);
 
 	struct MHD_Response* response = MHD_create_response_from_buffer(contentln,
 			(void*) content, MHD_RESPMEM_MUST_COPY);

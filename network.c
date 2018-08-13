@@ -25,12 +25,8 @@ static char* apinterfacename;
 
 static gboolean noapinterface;
 
-struct wpa_ctrl* wpa_ctrl_sta = NULL;
-struct wpa_ctrl* wpa_event_sta = NULL;
-struct wpa_ctrl* wpa_ctrl_ap = NULL;
-struct wpa_ctrl* wpa_event_ap = NULL;
-
-static GPid stasupplicantpid, apsupplicantpid;
+struct network_wpasupplicant_instance wpa_sta = { 0 };
+struct network_wpasupplicant_instance wpa_ap = { 0 };
 
 enum NETWORK_CONFIGURATION_STATE {
 	NTWKST_UNCONFIGURED, NTWKST_INPROGRESS, NTWKST_CONFIGURED
@@ -137,17 +133,16 @@ static gboolean network_setupinterfaces() {
 int network_start() {
 	if (!network_setupinterfaces())
 		return -1;
-	network_wpasupplicant_start(&wpa_ctrl_sta, &wpa_event_sta, interfacename,
-			&stasupplicantpid);
+	network_wpasupplicant_start(&wpa_sta, interfacename);
 	network_dhcpclient_start(stainterface->ifidx, interfacename,
 			stainterface->mac);
 
 	const struct config* cfg = config_getconfig();
 	if (cfg->ntwkcfg != NULL) {
-		int networkid = network_wpasupplicant_addnetwork(wpa_ctrl_sta,
+		int networkid = network_wpasupplicant_addnetwork(&wpa_sta,
 				cfg->ntwkcfg->ssid, cfg->ntwkcfg->psk,
 				WPASUPPLICANT_NETWORKMODE_STA);
-		network_wpasupplicant_selectnetwork(wpa_ctrl_sta, networkid);
+		network_wpasupplicant_selectnetwork(&wpa_sta, networkid);
 		configurationstate = NTWKST_CONFIGURED;
 	}
 
@@ -169,7 +164,7 @@ int network_waitforinterface() {
 
 int network_stop() {
 	network_dhcpclient_stop();
-	network_wpasupplicant_stop(wpa_ctrl_sta, &stasupplicantpid);
+	network_wpasupplicant_stop(&wpa_sta);
 	return 0;
 }
 
@@ -188,14 +183,13 @@ int network_startap(const gchar* nameprefix) {
 
 	network_rtnetlink_clearipv4addr(apinterface->ifidx);
 	network_rtnetlink_setipv4addr(apinterface->ifidx, "10.0.0.1/29");
-	if (!network_wpasupplicant_start(&wpa_ctrl_ap, &wpa_event_ap,
-			apinterfacename, &apsupplicantpid))
+	if (!network_wpasupplicant_start(&wpa_ap, apinterfacename))
 		goto err_startsupp;
 
-	network_wpasupplicant_seties(wpa_ctrl_ap, ies, G_N_ELEMENTS(ies));
-	network_wpasupplicant_addnetwork(wpa_ctrl_ap, name, "reallysecurepassword",
+	network_wpasupplicant_seties(&wpa_ap, ies, G_N_ELEMENTS(ies));
+	network_wpasupplicant_addnetwork(&wpa_ap, name, "reallysecurepassword",
 	WPASUPPLICANT_NETWORKMODE_AP);
-	network_wpasupplicant_selectnetwork(wpa_ctrl_ap, 0);
+	network_wpasupplicant_selectnetwork(&wpa_ap, 0);
 	network_dhcpserver_start(apinterface->ifidx, apinterfacename,
 			apinterface->mac);
 
@@ -210,7 +204,7 @@ int network_stopap() {
 }
 
 GPtrArray* network_scan() {
-	network_wpasupplicant_scan(wpa_ctrl_sta);
+	network_wpasupplicant_scan(&wpa_sta);
 	GPtrArray* scanresults = network_wpasupplicant_getlastscanresults();
 	return scanresults;
 }
@@ -228,10 +222,10 @@ gboolean network_configure(struct network_config* ntwkcfg) {
 
 	networkbeingconfigured = ntwkcfg;
 
-	int networkid = network_wpasupplicant_addnetwork(wpa_ctrl_sta,
-			ntwkcfg->ssid, ntwkcfg->psk,
+	int networkid = network_wpasupplicant_addnetwork(&wpa_sta, ntwkcfg->ssid,
+			ntwkcfg->psk,
 			WPASUPPLICANT_NETWORKMODE_STA);
-	network_wpasupplicant_selectnetwork(wpa_ctrl_sta, networkid);
+	network_wpasupplicant_selectnetwork(&wpa_sta, networkid);
 
 	timeoutsource = g_timeout_add(60 * 1000, network_configure_timeout,
 	NULL);
@@ -247,7 +241,15 @@ void network_dumpstatus(JsonBuilder* builder) {
 	JSONBUILDER_START_OBJECT(builder, "network");
 	JSONBUILDER_ADD_STRING(builder, "config_state",
 			configstatestrings[configurationstate]);
-	network_wpasupplicant_dumpstatus(builder);
+
+	JSONBUILDER_START_OBJECT(builder, "supplicant");
+	JSONBUILDER_ADD_BOOL(builder, "connected", wpa_sta.connected);
+
+	if (wpa_sta.lasterror != NULL)
+		JSONBUILDER_ADD_STRING(builder, "lasterror", wpa_sta.lasterror);
+
+	json_builder_end_object(builder);
+
 	network_dhcp_dumpstatus(builder);
 	json_builder_end_object(builder);
 }
@@ -263,17 +265,19 @@ static void network_checkconfigurationstate() {
 	ctrl_onnetworkstatechange();
 }
 
-void network_onsupplicantstatechange(gboolean connected) {
+void network_onsupplicantstatechange() {
 	network_checkconfigurationstate();
 }
 
 gboolean network_ctrl_sendstate(GOutputStream* os) {
+	int suppcliantstate = THINGYMCCONFIG_OK;
+	if (wpa_sta.connected)
+		suppcliantstate = THINGYMCCONFIG_ACTIVE;
 
 	struct tbus_fieldandbuff fields[] =
 			{
-							TBUS_STATEFIELD(THINGYMCCONFIG_FIELDTYPE_NETWORKSTATEUPDATE_SUPPLICANTSTATE, network_wpasupplicant_getstate(), 0),
-					{ .field = { .raw = { .type =
-					THINGYMCCONFIG_FIELDTYPE_NETWORKSTATEUPDATE_DHCPSTATE } } } };
+							TBUS_STATEFIELD(THINGYMCCONFIG_FIELDTYPE_NETWORKSTATEUPDATE_SUPPLICANTSTATE, suppcliantstate, 0),
+							TBUS_STATEFIELD(THINGYMCCONFIG_FIELDTYPE_NETWORKSTATEUPDATE_DHCPSTATE, 0, 0) };
 
 	return tbus_writemsg(os, THINGYMCCONFIG_MSGTYPE_EVENT_NETWORKSTATEUPDATE,
 			fields, G_N_ELEMENTS(fields));
