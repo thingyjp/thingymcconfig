@@ -29,7 +29,7 @@ int main(int argc, char** argv) {
 	gchar* key = NULL;
 	int ret = 0;
 
-	gchar* arg_config;
+	gchar* arg_config = NULL;
 
 	GError* error = NULL;
 	GOptionEntry entries[] = {

@@ -388,7 +388,7 @@ void network_wpasupplicant_dumpstatus(JsonBuilder* builder) {
 
 int network_wpasupplicant_getstate() {
 	int ret = THINGYMCCONFIG_OK;
-	if (connected)
+	//if (connected)
 		ret = THINGYMCCONFIG_ACTIVE;
 	return ret;
 }
