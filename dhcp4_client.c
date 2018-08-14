@@ -13,6 +13,7 @@ struct dhcp4_client_cntx* dhcp4_client_new(unsigned ifidx, const guint8* mac) {
 	cntx->ifidx = ifidx;
 	memcpy(cntx->mac, mac, sizeof(cntx->mac));
 	cntx->rand = g_rand_new();
+	cntx->paused = TRUE;
 	return cntx;
 }
 
@@ -31,6 +32,9 @@ static void dhcp4_client_send_discover(struct dhcp4_client_cntx* cntx) {
 
 static gboolean dhcp4_client_discoverytimeout(gpointer data) {
 	struct dhcp4_client_cntx* cntx = data;
+
+	if (cntx->paused)
+		return TRUE;
 
 	if (cntx->state != DHCP4CS_DISCOVERING)
 		return FALSE;
@@ -184,6 +188,14 @@ static void dhcp4_client_changestate(struct dhcp4_client_cntx* cntx,
 void dhcp4_client_start(struct dhcp4_client_cntx* cntx) {
 	_dhcp4_client_clearinterface(cntx->ifidx);
 	dhcp4_client_changestate(cntx, DHCP4CS_DISCOVERING);
+}
+
+void dhcp4_client_pause(struct dhcp4_client_cntx* ctnx) {
+	ctnx->paused = TRUE;
+}
+
+void dhcp4_client_resume(struct dhcp4_client_cntx* cntx) {
+	cntx->paused = FALSE;
 }
 
 void dhcp4_client_stop(struct dhcp4_client_cntx* cntx) {

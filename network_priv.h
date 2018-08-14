@@ -1,5 +1,6 @@
 #pragma once
 
-#define NETWORK_ERRMSG_FAILEDTOALLOCNLMSG "failed to allocate netlink message"
+#include "network.h"
+#include "network_wpasupplicant.h"
 
-void network_onsupplicantstatechange();
+#define NETWORK_ERRMSG_FAILEDTOALLOCNLMSG "failed to allocate netlink message"

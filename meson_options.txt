@@ -1,2 +1,0 @@
-option('wpasupplicantpath', type : 'string', value : '/sbin/wpa_supplicant', 
-       description : 'location of the wpa_supplicant binary')

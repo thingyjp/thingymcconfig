@@ -1,22 +1,43 @@
 #include "buildconfig.h"
-#include "network_wpasupplicant.h"
 #include "network_wpasupplicant_priv.h"
 #include "network_priv.h"
 #include "utils.h"
 #include "jsonbuilderutils.h"
-#include "include/thingymcconfig/ctrl.h"
+
+struct _NetworkWpaSupplicant {
+	GObject parent_instance;
+	struct wpa_ctrl* wpa_ctrl;
+	struct wpa_ctrl* wpa_event;
+	GPid pid;
+	gboolean connected;
+	gchar* lasterror;
+};
+
+G_DEFINE_TYPE(NetworkWpaSupplicant, network_wpasupplicant, G_TYPE_OBJECT)
+
+static guint supplicantsignal;
+static GQuark detail_connected;
+static GQuark detail_disconnected;
+
+static void network_wpasupplicant_class_init(NetworkWpaSupplicantClass *klass) {
+	supplicantsignal = g_signal_newv(NETWORK_WPASUPPLICANT_SIGNAL,
+	NETWORK_TYPE_WPASUPPLICANT,
+			G_SIGNAL_RUN_LAST | G_SIGNAL_NO_HOOKS | G_SIGNAL_NO_RECURSE
+					| G_SIGNAL_DETAILED, NULL,
+			NULL, NULL, NULL, G_TYPE_NONE, 0, NULL);
+	detail_connected = g_quark_from_string(
+	NETWORK_WPASUPPLICANT_DETAIL_CONNECTED);
+	detail_disconnected = g_quark_from_string(
+	NETWORK_WPASUPPLICANT_DETAIL_DISCONNECTED);
+}
+
+static void network_wpasupplicant_init(NetworkWpaSupplicant *self) {
+}
 
 #define ISOK(rsp) (strcmp(rsp, "OK") == 0)
 
 static GPtrArray* scanresults = NULL;
 static char* wpasupplicantsocketdir = "/tmp/thingy_sockets/";
-
-typedef void (*wpaeventhandler)(struct network_wpasupplicant_instance* wpa_ctrl,
-		const gchar* event);
-struct wpaeventhandler_entry {
-	const gchar* command;
-	const wpaeventhandler handler;
-};
 
 static gchar* network_wpasupplicant_docommand(struct wpa_ctrl* wpa_ctrl,
 		gsize* replylen, gboolean stripnewline, const char* command) {
@@ -145,15 +166,15 @@ static void network_wpasupplicant_getscanresults(struct wpa_ctrl* wpa_ctrl,
 }
 
 static void network_wpasupplicant_eventhandler_connect(
-		struct network_wpasupplicant_instance* instance, const gchar* event) {
-	instance->connected = TRUE;
-	network_onsupplicantstatechange();
+		NetworkWpaSupplicant* supplicant, const gchar* event) {
+	supplicant->connected = TRUE;
+	g_signal_emit(supplicant, supplicantsignal, detail_connected);
 }
 
 static void network_wpasupplicant_eventhandler_disconnect(
-		struct network_wpasupplicant_instance* instance, const gchar* event) {
-	instance->connected = FALSE;
-	network_onsupplicantstatechange();
+		NetworkWpaSupplicant* supplicant, const gchar* event) {
+	supplicant->connected = FALSE;
+	g_signal_emit(supplicant, supplicantsignal, detail_disconnected);
 }
 
 static GHashTable* network_wpasupplicant_getkeyvalues(const gchar* event) {
@@ -179,14 +200,14 @@ static GHashTable* network_wpasupplicant_getkeyvalues(const gchar* event) {
 }
 
 static void network_wpasupplicant_eventhandler_ssiddisabled(
-		struct network_wpasupplicant_instance* instance, const gchar* event) {
+		NetworkWpaSupplicant* supplicant, const gchar* event) {
 	//<3>CTRL-EVENT-SSID-TEMP-DISABLED id=0 ssid="ghettonet" auth_failures=2 duration=23 reason=WRONG_KEY
 	g_message("here");
 	GHashTable* keyvalues = network_wpasupplicant_getkeyvalues(event);
 	gchar* reason = g_hash_table_lookup(keyvalues, "reason");
-	if (instance->lasterror != NULL)
-		g_free(instance->lasterror);
-	instance->lasterror = g_strdup(reason);
+	if (supplicant->lasterror != NULL)
+		g_free(supplicant->lasterror);
+	supplicant->lasterror = g_strdup(reason);
 	g_hash_table_unref(keyvalues);
 }
 
@@ -198,13 +219,13 @@ WPA_EVENT_TEMP_DISABLED, network_wpasupplicant_eventhandler_ssiddisabled } };
 
 static gboolean network_wpasupplicant_onevent(GIOChannel *source,
 		GIOCondition condition, gpointer data) {
-	struct network_wpasupplicant_instance* instance = data;
+	NetworkWpaSupplicant* supplicant = data;
 	size_t replylen = 1024;
 	char* reply = g_malloc0(replylen + 1);
-	wpa_ctrl_recv(instance->wpa_event, reply, &replylen);
+	wpa_ctrl_recv(supplicant->wpa_event, reply, &replylen);
 
 #ifdef WSDEBUG
-	g_message("event for wpa supplicant: %s", reply);
+	g_message("event for wpa supplicant(%d): %s", supplicant->pid, reply);
 #endif
 
 	GRegex* regex = g_regex_new("^<([0-4])>([A-Z,-]* )", 0, 0, NULL);
@@ -219,7 +240,7 @@ static gboolean network_wpasupplicant_onevent(GIOChannel *source,
 
 		for (int i = 0; i < G_N_ELEMENTS(eventhandlers); i++) {
 			if (strcmp(command, eventhandlers[i].command) == 0) {
-				eventhandlers[i].handler(instance, reply);
+				eventhandlers[i].handler(supplicant, reply);
 				break;
 			}
 		}
@@ -235,8 +256,7 @@ static gboolean network_wpasupplicant_onevent(GIOChannel *source,
 	return TRUE;
 }
 
-void network_wpasupplicant_seties(
-		struct network_wpasupplicant_instance* instance,
+void network_wpasupplicant_seties(NetworkWpaSupplicant* supplicant,
 		const struct network_wpasupplicant_ie* ies, unsigned numies) {
 	if (numies > 0) {
 		GString* iedatastr = g_string_new("SET ap_vendor_elements ");
@@ -252,27 +272,27 @@ void network_wpasupplicant_seties(
 		}
 		gchar* iedatacmd = g_string_free(iedatastr, FALSE);
 		gsize replylen;
-		network_wpasupplicant_docommand(instance->wpa_ctrl, &replylen, TRUE,
+		network_wpasupplicant_docommand(supplicant->wpa_ctrl, &replylen, TRUE,
 				iedatacmd);
 		g_free(iedatacmd);
 	}
 }
 
-void network_wpasupplicant_scan(struct network_wpasupplicant_instance* instance) {
+void network_wpasupplicant_scan(NetworkWpaSupplicant* supplicant) {
 	size_t replylen;
-	char* reply = network_wpasupplicant_docommand(instance->wpa_ctrl, &replylen,
-	TRUE, "SCAN");
+	char* reply = network_wpasupplicant_docommand(supplicant->wpa_ctrl,
+			&replylen,
+			TRUE, "SCAN");
 	if (reply != NULL) {
 		g_free(reply);
 	}
 }
 
-int network_wpasupplicant_addnetwork(
-		struct network_wpasupplicant_instance* instance, const gchar* ssid,
-		const gchar* psk, unsigned mode) {
+int network_wpasupplicant_addnetwork(NetworkWpaSupplicant* supplicant,
+		const gchar* ssid, const gchar* psk, unsigned mode) {
 	g_message("adding network %s with psk %s", ssid, psk);
 	gsize respsz;
-	gchar* resp = network_wpasupplicant_docommand(instance->wpa_ctrl, &respsz,
+	gchar* resp = network_wpasupplicant_docommand(supplicant->wpa_ctrl, &respsz,
 	TRUE, "ADD_NETWORK");
 	guint64 networkid;
 	if (resp != NULL) {
@@ -284,54 +304,54 @@ int network_wpasupplicant_addnetwork(
 		g_free(resp);
 	}
 
-	resp = network_wpasupplicant_docommandf(instance->wpa_ctrl, &respsz, TRUE,
+	resp = network_wpasupplicant_docommandf(supplicant->wpa_ctrl, &respsz, TRUE,
 			"SET_NETWORK %u ssid \"%s\"", (unsigned) networkid, ssid);
 	if (resp != NULL) {
 		g_assert(ISOK(resp));
 		g_free(resp);
 	}
 
-	resp = network_wpasupplicant_docommandf(instance->wpa_ctrl, &respsz, TRUE,
+	resp = network_wpasupplicant_docommandf(supplicant->wpa_ctrl, &respsz, TRUE,
 			"SET_NETWORK %u psk \"%s\"", (unsigned) networkid, psk);
 	if (resp != NULL) {
 		g_assert(ISOK(resp));
 		g_free(resp);
 	}
 
-	resp = network_wpasupplicant_docommandf(instance->wpa_ctrl, &respsz, TRUE,
+	resp = network_wpasupplicant_docommandf(supplicant->wpa_ctrl, &respsz, TRUE,
 			"SET_NETWORK %u mode %d", (unsigned) networkid, mode);
 	if (resp != NULL) {
 		g_assert(ISOK(resp));
 		g_free(resp);
 	}
-
 	return networkid;
 }
 
-void network_wpasupplicant_selectnetwork(
-		struct network_wpasupplicant_instance* instance, int which) {
+void network_wpasupplicant_selectnetwork(NetworkWpaSupplicant* supplicant,
+		int which) {
 	gsize respsz;
-	gchar* resp = network_wpasupplicant_docommandf(instance->wpa_ctrl, &respsz,
-			TRUE, "SELECT_NETWORK %d", which);
+	gchar* resp = network_wpasupplicant_docommandf(supplicant->wpa_ctrl,
+			&respsz, TRUE, "SELECT_NETWORK %d", which);
 	if (resp != NULL)
 		g_free(resp);
 }
 
-void network_wpasupplicant_init() {
-}
+NetworkWpaSupplicant* network_wpasupplicant_new(const char* interface) {
+	NetworkWpaSupplicant* supplicant = g_object_new(NETWORK_TYPE_WPASUPPLICANT,
+	NULL);
 
-gboolean network_wpasupplicant_start(
-		struct network_wpasupplicant_instance* instance, const char* interface) {
 	gboolean ret = FALSE;
 	g_message("starting wpa_supplicant for %s", interface);
 	gchar* args[] = { WPASUPPLICANT_BINARYPATH, "-Dnl80211", "-i", interface,
 			"-C", wpasupplicantsocketdir, "-qq", NULL };
 	if (!g_spawn_async(NULL, args, NULL,
 			G_SPAWN_STDOUT_TO_DEV_NULL | G_SPAWN_STDERR_TO_DEV_NULL, NULL,
-			NULL, &instance->pid, NULL)) {
+			NULL, &supplicant->pid, NULL)) {
 		g_message("failed to start wpa_supplicant");
 		goto err_spawn;
-	}
+	} else
+		g_message("wpa_supplicant for %s started, pid %d", interface,
+				supplicant->pid);
 
 	g_usleep(2 * 1000000);
 
@@ -339,43 +359,61 @@ gboolean network_wpasupplicant_start(
 	g_string_printf(socketpathstr, "%s/%s", wpasupplicantsocketdir, interface);
 	gchar* socketpath = g_string_free(socketpathstr, FALSE);
 
-	instance->wpa_ctrl = wpa_ctrl_open(socketpath);
-	if (instance->wpa_ctrl)
+	supplicant->wpa_ctrl = wpa_ctrl_open(socketpath);
+	if (supplicant->wpa_ctrl)
 		g_message("wpa_supplicant control socket connected");
 	else {
 		g_message("failed to open wpa_supplicant control socket");
 		goto err_openctrlsck;
 	}
 
-	instance->wpa_event = wpa_ctrl_open(socketpath);
-	if (instance->wpa_event) {
+	supplicant->wpa_event = wpa_ctrl_open(socketpath);
+	if (supplicant->wpa_event) {
 		g_message("wpa_supplicant event socket connected");
-		wpa_ctrl_attach(instance->wpa_event);
-		int fd = wpa_ctrl_get_fd(instance->wpa_event);
+		wpa_ctrl_attach(supplicant->wpa_event);
+		int fd = wpa_ctrl_get_fd(supplicant->wpa_event);
 		utils_addwatchforsocketfd(fd, G_IO_IN, network_wpasupplicant_onevent,
-				instance);
+				supplicant);
 	} else {
 		g_message("failed to open wpa_supplicant event socket");
 		goto err_openevntsck;
 	}
 
-	ret = TRUE;
-	goto out;
+	return supplicant;
 
 	err_openevntsck:	//
-	wpa_ctrl_close(instance->wpa_ctrl);
+	wpa_ctrl_close(supplicant->wpa_ctrl);
 	out: //
 	err_openctrlsck:	//
 	g_free(socketpath);
 	err_spawn:			//
-	return ret;
+	return NULL;
 }
 
 GPtrArray* network_wpasupplicant_getlastscanresults() {
 	return scanresults;
 }
 
-void network_wpasupplicant_stop(struct network_wpasupplicant_instance* instance) {
-	wpa_ctrl_close(instance->wpa_ctrl);
-	wpa_ctrl_close(instance->wpa_event);
+void network_wpasupplicant_dumpstate(NetworkWpaSupplicant* supplicant,
+		JsonBuilder* builder) {
+	JSONBUILDER_START_OBJECT(builder, "supplicant");
+	JSONBUILDER_ADD_BOOL(builder, "connected", supplicant->connected);
+	if (supplicant->lasterror)
+		JSONBUILDER_ADD_STRING(builder, "lasterror", supplicant->lasterror);
+}
+
+void network_wpasupplicant_ctrl_fill(NetworkWpaSupplicant* supplicant,
+		struct tbus_fieldandbuff* field) {
+	int supplicantstate = THINGYMCCONFIG_OK;
+	if (supplicant->connected)
+		supplicantstate = THINGYMCCONFIG_ACTIVE;
+	struct tbus_fieldandbuff f = TBUS_STATEFIELD(
+			THINGYMCCONFIG_FIELDTYPE_NETWORKSTATEUPDATE_SUPPLICANTSTATE,
+			supplicantstate, 0);
+	memcpy(field, sizeof(*field), &f);
+}
+
+void network_wpasupplicant_stop(NetworkWpaSupplicant* supplicant) {
+	wpa_ctrl_close(supplicant->wpa_ctrl);
+	wpa_ctrl_close(supplicant->wpa_event);
 }

@@ -87,7 +87,7 @@ int main(int argc, char** argv) {
 			goto err_network_waitforinterface;
 		}
 
-		if (network_start()) {
+		if (!network_start()) {
 			g_message("failed to start networking");
 			ret = 1;
 			goto err_network_start;

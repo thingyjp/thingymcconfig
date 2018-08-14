@@ -7,7 +7,7 @@ G_BEGIN_DECLS
 
 #define THINGYMCCONFIG_TYPE_CLIENT thingymcconfig_client_get_type ()
 G_DECLARE_FINAL_TYPE(ThingyMcConfigClient, thingymcconfig_client,
-		THINGYMCCONFIG, CONFIG, GObject)
+		THINGYMCCONFIG, CLIENT, GObject)
 
 G_END_DECLS
 

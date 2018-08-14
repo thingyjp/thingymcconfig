@@ -33,10 +33,14 @@ struct dhcp4_client_cntx {
 	guint32 xid;
 	struct dhcp4_client_lease* pendinglease;
 	struct dhcp4_client_lease* currentlease;
+
+	gboolean paused;
 };
 
 struct dhcp4_client_cntx* dhcp4_client_new(unsigned ifidx, const guint8* mac);
 void dhcp4_client_start(struct dhcp4_client_cntx* cntx);
+void dhcp4_client_pause(struct dhcp4_client_cntx* ctnx);
+void dhcp4_client_resume(struct dhcp4_client_cntx* cntx);
 void dhcp4_client_stop(struct dhcp4_client_cntx* cntx);
 
 /* The intention here is to not make this stuff too dependent on the rest
