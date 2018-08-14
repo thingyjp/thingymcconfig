@@ -2,7 +2,7 @@
 #include <glib.h>
 #include <glib-unix.h>
 #include "buildconfig.h"
-#include "logging.h"
+#include "include/thingymcconfig/logging.h"
 #include "config.h"
 #include "ctrl.h"
 #include "network.h"

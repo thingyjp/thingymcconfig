@@ -1,4 +1,4 @@
-#include "logging.h"
+#include "include/thingymcconfig/logging.h"
 
 #include <gio/gio.h>
 
