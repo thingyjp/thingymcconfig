@@ -157,7 +157,7 @@ gboolean network_start() {
 			NETWORK_WPASUPPLICANT_SIGNAL "::" NETWORK_WPASUPPLICANT_DETAIL_DISCONNECTED,
 			network_supplicant_disconnected, NULL);
 
-	network_dhcpclient_start(stainterface->ifidx, interfacename,
+	network_dhcpclient_start(supplicant_sta, stainterface->ifidx, interfacename,
 			stainterface->mac);
 
 	const struct config* cfg = config_getconfig();

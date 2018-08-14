@@ -44,11 +44,25 @@ void _dhcp4_client_configureinterface(unsigned ifidx, const guint8* address,
 	g_free(resolvconfstr);
 }
 
-void network_dhcpclient_start(unsigned ifidx, const gchar* interfacename,
-		const guint8* interfacemac) {
+static void network_dhcpclient_supplicantconnected(void) {
+	dhcp4_client_resume(dhcp4clientcntx);
+}
+
+static void network_dhcpclient_supplicantdisconnected(void) {
+	dhcp4_client_pause(dhcp4clientcntx);
+}
+
+void network_dhcpclient_start(NetworkWpaSupplicant* supplicant, unsigned ifidx,
+		const gchar* interfacename, const guint8* interfacemac) {
 	g_message("starting dhcp4 client for %s", interfacename);
 	dhcp4clientcntx = dhcp4_client_new(ifidx, interfacemac);
 	dhcp4_client_start(dhcp4clientcntx);
+	g_signal_connect(supplicant,
+			NETWORK_WPASUPPLICANT_SIGNAL "::" NETWORK_WPASUPPLICANT_DETAIL_CONNECTED,
+			network_dhcpclient_supplicantconnected, NULL);
+	g_signal_connect(supplicant,
+			NETWORK_WPASUPPLICANT_SIGNAL "::" NETWORK_WPASUPPLICANT_DETAIL_DISCONNECTED,
+			network_dhcpclient_supplicantdisconnected, NULL);
 }
 
 void network_dhcpclient_stop() {

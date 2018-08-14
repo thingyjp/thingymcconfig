@@ -410,7 +410,7 @@ void network_wpasupplicant_ctrl_fill(NetworkWpaSupplicant* supplicant,
 	struct tbus_fieldandbuff f = TBUS_STATEFIELD(
 			THINGYMCCONFIG_FIELDTYPE_NETWORKSTATEUPDATE_SUPPLICANTSTATE,
 			supplicantstate, 0);
-	memcpy(field, sizeof(*field), &f);
+	memcpy(field, &f, sizeof(*field));
 }
 
 void network_wpasupplicant_stop(NetworkWpaSupplicant* supplicant) {
