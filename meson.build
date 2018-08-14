@@ -1,6 +1,10 @@
 project('thingymcconfig', 'c')
 
-wpasupplicant = find_program(['/sbin/wpa_supplicant', '/usr/sbin/wpa_supplicant'], required: true)
+if(meson.is_cross_build())
+  wpasupplicant = '/usr/sbin/wpa_supplicant'
+else
+  wpasupplicant = find_program(['/sbin/wpa_supplicant', '/usr/sbin/wpa_supplicant'], required: true).path()
+endif
 
 src = ['thingymcconfig.c',
        'http.c',
@@ -36,7 +40,7 @@ hostapincdir = ['hostap/src/common/','hostap/src/utils/']
 jsonmacrosincdir = ['json-glib-macros']
 
 add_global_arguments('-Werror=implicit-function-declaration', language : 'c')
-add_global_arguments('-DWPASUPPLICANT_BINARYPATH="' + wpasupplicant.path() + '"', language : 'c')
+add_global_arguments('-DWPASUPPLICANT_BINARYPATH="' + wpasupplicant + '"', language : 'c')
 add_global_arguments('-DCONFIG_CTRL_IFACE', language : 'c')
 add_global_arguments('-DCONFIG_CTRL_IFACE_UNIX', language : 'c')
 
