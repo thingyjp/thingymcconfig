@@ -110,8 +110,8 @@ static void network_wpasupplicant_freescanresult(gpointer data) {
 	g_free(data);
 }
 
-static void network_wpasupplicant_getscanresults(struct wpa_ctrl* wpa_ctrl,
-		const gchar* event) {
+static void network_wpasupplicant_getscanresults(
+		NetworkWpaSupplicant* supplicant, const gchar* event) {
 	if (scanresults != NULL)
 		g_ptr_array_unref(scanresults);
 
@@ -119,8 +119,8 @@ static void network_wpasupplicant_getscanresults(struct wpa_ctrl* wpa_ctrl,
 			network_wpasupplicant_freescanresult);
 
 	size_t replylen;
-	char* reply = network_wpasupplicant_docommand(wpa_ctrl, &replylen, FALSE,
-			"SCAN_RESULTS");
+	char* reply = network_wpasupplicant_docommand(supplicant->wpa_ctrl,
+			&replylen, FALSE, "SCAN_RESULTS");
 	if (reply != NULL) {
 		//g_message("%s\n sr: %s", SCANRESULTREGEX, reply);
 		GRegex* networkregex = g_regex_new(SCANRESULTREGEX, 0, 0, NULL);
@@ -235,15 +235,20 @@ static gboolean network_wpasupplicant_onevent(GIOChannel *source,
 		char* command = g_match_info_fetch(matchinfo, 2);
 
 #ifdef WSDEBUG
-		g_message("level: %s, command %s", level, command);
+		g_message("level: %s, command \"%s\"", level, command);
 #endif
 
+		gboolean handled = FALSE;
 		for (int i = 0; i < G_N_ELEMENTS(eventhandlers); i++) {
 			if (strcmp(command, eventhandlers[i].command) == 0) {
 				eventhandlers[i].handler(supplicant, reply);
+				handled = TRUE;
 				break;
 			}
 		}
+
+		if (!handled)
+			g_message("unhandled event %s", command);
 
 		g_free(level);
 		g_free(command);

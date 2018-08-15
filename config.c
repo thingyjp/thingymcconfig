@@ -25,12 +25,10 @@ static void config_save() {
 
 void config_init(const gchar* configpath) {
 	cfgpath = configpath;
-
 	cfg = g_malloc0(sizeof(*cfg));
 
 	gchar* cfgjson;
 	gsize cfgsz;
-	gboolean cfgvalid = FALSE;
 	if (g_file_get_contents(cfgpath, &cfgjson, &cfgsz, NULL)) {
 		JsonParser* parser = json_parser_new();
 		if (json_parser_load_from_data(parser, cfgjson, cfgsz, NULL)) {
@@ -47,9 +45,6 @@ void config_init(const gchar* configpath) {
 		}
 		g_free(cfgjson);
 	}
-
-	if (!cfgvalid)
-		g_message("config doesn't exist or is invalid");
 }
 
 void config_onnetworkconfigured(struct network_config* config) {
