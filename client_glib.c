@@ -16,6 +16,7 @@ struct _ThingyMcConfigClient {
 	struct networkstate networkstate;
 	const gchar* appname;
 	int appindex;
+	gboolean lazyconnect;
 };
 
 G_DEFINE_TYPE(ThingyMcConfigClient, thingymcconfig_client, G_TYPE_OBJECT)
@@ -154,7 +155,9 @@ ThingyMcConfigClient* thingymcconfig_client_new(const gchar* appname) {
 	return client;
 }
 
-void thingymcconfig_client_connect(ThingyMcConfigClient *client) {
+static gboolean thingymcconfig_client_connect_internal(
+		ThingyMcConfigClient *client) {
+	gboolean ret = FALSE;
 	g_assert(client->socketconnection == NULL);
 
 	GSocketConnection* socketconnection = NULL;
@@ -187,16 +190,33 @@ void thingymcconfig_client_connect(ThingyMcConfigClient *client) {
 
 	client->socketconnection = socketconnection;
 	g_message("ctrl socket connected");
+	ret = TRUE;
 
 	err_sock: //
 	err_connect: //
 
-	if (!client->socketconnection)
+	if (!client->socketconnection) {
 		g_signal_emit(client, signal_daemon, detail_daemon_connectfailed);
+	}
+
+	return ret;
+}
+
+void thingymcconfig_client_connect(ThingyMcConfigClient *client) {
+	g_assert(!client->lazyconnect);
+	thingymcconfig_client_connect_internal(client);
+}
+
+static gboolean thingymcconfig_client_lazyconnect_timeout(gpointer user_data) {
+	ThingyMcConfigClient* client = user_data;
+	return thingymcconfig_client_connect_internal(client) ?
+			G_SOURCE_REMOVE : G_SOURCE_CONTINUE;
 }
 
 void thingymcconfig_client_lazyconnect(ThingyMcConfigClient* client) {
-	thingymcconfig_client_connect(client);
+	if (!thingymcconfig_client_connect_internal(client))
+		g_timeout_add_seconds(30, thingymcconfig_client_lazyconnect_timeout,
+				client);
 }
 
 void thingymcconfig_client_sendconnectivitystate(ThingyMcConfigClient* client,
