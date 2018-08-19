@@ -51,7 +51,7 @@ install_headers(['include/thingymcconfig/ctrl.h', 'include/thingymcconfig/utils.
 client_glib_deps = [ dependency('glib-2.0'),
                      dependency('gio-unix-2.0') ]
 client_glib_src = [ 'client_glib.c', 'tbus.c', 'utils.c', 'logging.c' ]
-client_glib_lib = shared_library('thingmcconfig_client_glib', client_glib_src,
+client_glib_lib = shared_library('thingymcconfig_client_glib', client_glib_src,
                 dependencies : client_glib_deps,
                 install : true)
 install_headers('include/thingymcconfig/client_glib.h', subdir : 'thingymcconfig')
