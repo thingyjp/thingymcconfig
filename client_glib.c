@@ -112,11 +112,23 @@ static gboolean thingymcconfig_client_socketcallback(GIOChannel *source,
 		g_object_unref(client->socketconnection);
 		client->socketconnection = NULL;
 		g_signal_emit(client, signal_daemon, detail_daemon_disconnected);
+
+		if (client->lazyconnect)
+			thingymcconfig_client_lazyconnect(client);
 	}
 	return ret;
 }
 
+static void thingymcconfig_client_dispose(GObject *gobject) {
+	ThingyMcConfigClient* client = THINGYMCCONFIG_CLIENT(gobject);
+	g_object_unref(client->socketconnection);
+	G_OBJECT_CLASS(gobject)->dispose;
+}
+
 static void thingymcconfig_client_class_init(ThingyMcConfigClientClass *klass) {
+	GObjectClass *object_class = G_OBJECT_CLASS(klass);
+	object_class->dispose = thingymcconfig_client_dispose;
+
 	signal_daemon = g_signal_newv(THINGYMCCONFIG_CLIENT_SIGNAL_DAEMON,
 	THINGYMCCONFIG_TYPE_CLIENT,
 			G_SIGNAL_RUN_LAST | G_SIGNAL_NO_HOOKS | G_SIGNAL_NO_RECURSE
@@ -210,7 +222,8 @@ void thingymcconfig_client_connect(ThingyMcConfigClient *client) {
 static gboolean thingymcconfig_client_lazyconnect_timeout(gpointer user_data) {
 	ThingyMcConfigClient* client = user_data;
 	return thingymcconfig_client_connect_internal(client) ?
-			G_SOURCE_REMOVE : G_SOURCE_CONTINUE;
+	G_SOURCE_REMOVE :
+															G_SOURCE_CONTINUE;
 }
 
 void thingymcconfig_client_lazyconnect(ThingyMcConfigClient* client) {
@@ -250,5 +263,5 @@ void thingymcconfig_client_sendappstate(ThingyMcConfigClient* client) {
 }
 
 void thingymcconfig_client_free(ThingyMcConfigClient *client) {
-
+	g_object_unref(client);
 }
