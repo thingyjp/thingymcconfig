@@ -104,8 +104,10 @@ int main(int argc, char** argv) {
 	ctrl_start();
 
 	//todo should only be called when entering provisioning mode
-	if (!nonetwork)
+	if (!nonetwork && config_getconfig()->ntwkcfg == NULL) {
+		g_message("network is unconfigured, starting ap");
 		network_startap(nameprefix);
+	}
 
 	g_unix_signal_add(SIGINT, siginthandler, NULL);
 	g_main_loop_run(mainloop);
