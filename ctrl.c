@@ -58,7 +58,8 @@ static void ctrl_emitter_appstate(gpointer target, gpointer user_data) {
 	if (existingmapping != NULL) {
 		guint index = GPOINTER_TO_UINT(existingmapping);
 		if (appstate->appindex != index) {
-			g_message("app has mysteriously changed it's index");
+			g_message("app has mysteriously changed it's index %u to %u", index,
+					appstate->appindex);
 		}
 	} else {
 		gpointer index = GUINT_TO_POINTER((guint ) appstate->appstate);

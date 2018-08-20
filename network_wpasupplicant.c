@@ -345,7 +345,6 @@ NetworkWpaSupplicant* network_wpasupplicant_new(const char* interface) {
 	NetworkWpaSupplicant* supplicant = g_object_new(NETWORK_TYPE_WPASUPPLICANT,
 	NULL);
 
-	gboolean ret = FALSE;
 	g_message("starting wpa_supplicant for %s", interface);
 	gchar* args[] = { WPASUPPLICANT_BINARYPATH, "-Dnl80211", "-i", interface,
 			"-C", wpasupplicantsocketdir, "-qq", NULL };
@@ -388,7 +387,6 @@ NetworkWpaSupplicant* network_wpasupplicant_new(const char* interface) {
 
 	err_openevntsck:	//
 	wpa_ctrl_close(supplicant->wpa_ctrl);
-	out: //
 	err_openctrlsck:	//
 	g_free(socketpath);
 	err_spawn:			//

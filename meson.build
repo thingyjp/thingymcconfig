@@ -34,7 +34,8 @@ deps = [ dependency('glib-2.0'),
          dependency('gio-unix-2.0'),
          dependency('libmicrohttpd'),
          dependency('libnl-genl-3.0'),
-         dependency('libnl-route-3.0')]
+         dependency('libnl-route-3.0'),
+         dependency('libgpiod')]
 
 hostapincdir = ['hostap/src/common/','hostap/src/utils/']
 jsonmacrosincdir = ['json-glib-macros']

@@ -35,7 +35,7 @@ static void thingymcconfig_client_fieldproc_appconfig(
 	g_message("processing app config field");
 	unsigned* index = target;
 	ThingyMcConfigClient* client = user_data;
-	if (strcmp(field->buff, client->appname) == 0) {
+	if (strcmp((gchar*) field->buff, client->appname) == 0) {
 		g_message("found our app index");
 		*index = field->field.index.index;
 	}
@@ -122,7 +122,7 @@ static gboolean thingymcconfig_client_socketcallback(GIOChannel *source,
 static void thingymcconfig_client_dispose(GObject *gobject) {
 	ThingyMcConfigClient* client = THINGYMCCONFIG_CLIENT(gobject);
 	g_object_unref(client->socketconnection);
-	G_OBJECT_CLASS(gobject)->dispose;
+	G_OBJECT_CLASS(gobject)->dispose(gobject);
 }
 
 static void thingymcconfig_client_class_init(ThingyMcConfigClientClass *klass) {
