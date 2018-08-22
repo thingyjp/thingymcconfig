@@ -9,8 +9,6 @@ endif
 src = ['thingymcconfig.c',
        'http.c',
        'network.c',
-       'network_nl80211.c',
-       'network_rtnetlink.c',
        'network_wpasupplicant.c',
        'network_dhcp.c',
        'network_model.c',
@@ -35,7 +33,8 @@ deps = [ dependency('glib-2.0'),
          dependency('libmicrohttpd'),
          dependency('libnl-genl-3.0'),
          dependency('libnl-route-3.0'),
-         dependency('libgpiod')]
+         dependency('libgpiod'),
+         dependency('libnlglue') ]
 
 hostapincdir = ['hostap/src/common/','hostap/src/utils/']
 jsonmacrosincdir = ['json-glib-macros']

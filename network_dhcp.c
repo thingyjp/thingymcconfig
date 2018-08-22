@@ -1,6 +1,6 @@
+#include <nlglue/rtnetlink.h>
 #include "buildconfig.h"
 #include "network_dhcp.h"
-#include "network_rtnetlink.h"
 #include "dhcp4_client.h"
 #include "dhcp4_server.h"
 #include "ip4.h"

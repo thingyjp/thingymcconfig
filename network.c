@@ -1,13 +1,11 @@
 #include <sys/types.h>
-#include <netlink/socket.h>
-#include <netlink/genl/genl.h>
-#include <netlink/genl/ctrl.h>
 #include <linux/if.h>
+#include <nlglue/nl80211.h>
+#include <nlglue/rtnetlink.h>
 
 #include "buildconfig.h"
 #include "network_priv.h"
-#include "network_nl80211.h"
-#include "network_rtnetlink.h"
+
 #include "network_wpasupplicant.h"
 #include "network_dhcp.h"
 #include "config.h"
