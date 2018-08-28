@@ -1,5 +1,5 @@
 #include <glib.h>
-#include <gio/gunixsocketaddress.h>
+#include <teenynet/unix.h>
 #include "ctrl.h"
 #include "apps.h"
 #include "network.h"
@@ -106,18 +106,8 @@ void ctrl_init() {
 }
 
 void ctrl_start() {
-	GSocketAddress* socketaddress = g_unix_socket_address_new(
-	THINGYMCCONFIG_CTRLSOCKPATH);
-	socketservice = g_socket_service_new();
-
-	GError* err = NULL;
-	if (!g_socket_listener_add_address((GSocketListener*) socketservice,
-			socketaddress, G_SOCKET_TYPE_STREAM, G_SOCKET_PROTOCOL_DEFAULT,
-			NULL, NULL, &err)) {
-		g_message("failed to add listener; %s", err->message);
-	}
-	g_signal_connect(socketservice, "incoming",
-			G_CALLBACK(ctrl_incomingcallback), NULL);
+	socketservice = unix_createsocketlistener(THINGYMCCONFIG_CTRLSOCKPATH,
+			ctrl_incomingcallback, NULL);
 }
 
 static void ctrl_notifyclientofnetworkstatechange(gpointer data,
