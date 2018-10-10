@@ -123,11 +123,7 @@ void ctrl_onnetworkstatechange() {
 }
 
 void ctrl_stop() {
-	g_socket_service_stop(socketservice);
-	GFile* sockfile = g_file_new_for_path(THINGYMCCONFIG_CTRLSOCKPATH);
-	g_file_delete(sockfile, NULL, NULL);
-	g_object_unref(sockfile);
-
+	unix_socketservice_destroy(socketservice, THINGYMCCONFIG_CTRLSOCKPATH);
 	g_ptr_array_foreach(clientconnections, ctrl_disconnectapp, NULL);
 }
 

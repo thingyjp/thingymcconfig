@@ -238,9 +238,10 @@ static void http_requestcompleted(void *cls, struct MHD_Connection *connection,
 
 int http_start() {
 	mhd = MHD_start_daemon(MHD_USE_SELECT_INTERNALLY, PORT, NULL, NULL,
-			http_handleconnection, NULL, MHD_OPTION_NOTIFY_COMPLETED,
-			http_requestcompleted,
-			NULL, MHD_OPTION_END);
+			http_handleconnection, NULL,
+			// options
+			MHD_OPTION_NOTIFY_COMPLETED, http_requestcompleted,
+			MHD_OPTION_CONNECTION_LIMIT, 2, MHD_OPTION_END);
 
 	if (mhd == NULL)
 		return 1;
