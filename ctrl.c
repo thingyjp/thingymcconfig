@@ -106,7 +106,7 @@ void ctrl_init() {
 }
 
 void ctrl_start() {
-	socketservice = unix_createsocketlistener(THINGYMCCONFIG_CTRLSOCKPATH,
+	socketservice = unix_socketservice_create(THINGYMCCONFIG_CTRLSOCKPATH,
 			ctrl_incomingcallback, NULL);
 }
 
