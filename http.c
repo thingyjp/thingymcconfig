@@ -241,7 +241,7 @@ int http_start() {
 			http_handleconnection, NULL,
 			// options
 			MHD_OPTION_NOTIFY_COMPLETED, http_requestcompleted,
-			MHD_OPTION_CONNECTION_LIMIT, 2, MHD_OPTION_END);
+			MHD_OPTION_CONNECTION_LIMIT, (unsigned int) 2, MHD_OPTION_END);
 
 	if (mhd == NULL)
 		return 1;
