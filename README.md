@@ -30,8 +30,8 @@ On Debian or similar you need these packages
  
 ### Hardware:
 wifi interface that supports NL80211 and supports a station VIF(virtual interface) 
-and an access point VIF simultaneously. This is apparently less
-common than you might think. 
+and an access point VIF simultaneously. This is apparently less common than you might
+think and it's broken for a lot of chipsets that report supporting it.
 
 To check run:
 
@@ -57,6 +57,10 @@ In the example you can see the second combination allows for
 ### Chipsets/Drivers that should work
 #### Broadcom BCM43143/brcmfmac
 Only tested the usb version so far (RaspberryPi official usb dongle).
+#### Broadcom BCM43430/brcmfmac
+Tested with the Ampak AP6212A (very common, very cheap module). Doesn't
+work out of the box with Linux 4.18 but works with a newer firmware
+and a single patch from Cypress' driver release bundle.
 #### Marvell 88w8801,88w8897/mwifiex
 Only tested the usb version of the 88w8801 and the pci-e version of 88w8897
 so far. Station and AP come up and operate correctly.
