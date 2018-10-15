@@ -30,7 +30,8 @@ static void network_dhcpclient_lease(Dhcp4Client* client,
 		g_string_append_printf(addrgstr, IP4_ADDRFMT"/%d",
 				IP4_ARGS(lease->leasedip), nmbits);
 		gchar* addrstr = g_string_free(addrgstr, FALSE);
-		network_rtnetlink_setipv4addr(ifidx, addrstr);
+		network_rtnetlink_clearipv4addr(ifidx);
+		rtnetlink_ipv4_addr_add(ifidx, addrstr);
 		g_free(addrstr);
 
 		network_rtnetlink_setipv4defaultfw(ifidx, lease->defaultgw);

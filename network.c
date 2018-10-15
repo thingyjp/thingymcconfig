@@ -207,7 +207,7 @@ int network_startap(const gchar* nameprefix) {
 	gchar* name = g_string_free(namestr, FALSE);
 
 	network_rtnetlink_clearipv4addr(apinterface->ifidx);
-	network_rtnetlink_setipv4addr(apinterface->ifidx, "10.0.0.1/29");
+	rtnetlink_ipv4_addr_add(apinterface->ifidx, "10.0.0.1/29");
 	supplicant_ap = network_wpasupplicant_new(apinterfacename);
 	if (supplicant_ap == NULL)
 		goto err_startsupp;
