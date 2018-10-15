@@ -1,7 +1,8 @@
 #define DEVELOPMENT
 
+#if @debug@
 #define DEBUG
-#ifdef DEBUG
+
 #define NLDEBUG // debugging for netlink
 #define WSDEBUG // debugging for wpa_supplicant
 
@@ -9,7 +10,8 @@
 //#define PSNOBIND // don't bind the packetsocket to the interface
 
 #define D4MDEBUG
-#endif
+
+#endif //debug
 
 #ifndef WPASUPPLICANT_BINARYPATH
 #error "Please define WPASUPPLICANT_BINARYPATH"

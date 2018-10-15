@@ -42,7 +42,17 @@ add_global_arguments('-DCONFIG_CTRL_IFACE_UNIX', language : 'c')
 
 executable('thingymcconfig', src, include_directories : include_directories(hostapincdir + jsonmacrosincdir),
            dependencies : deps, install : true, install_dir : 'sbin')
-install_headers(['include/thingymcconfig/ctrl.h', 'include/thingymcconfig/utils.h', 'include/thingymcconfig/logging.h'], subdir : 'thingymcconfig')
+
+conf_data = configuration_data()
+conf_data.set('debug', get_option('debug') ? 1 : 0)
+configure_file(input : 'buildconfig.h.in',
+               output : 'buildconfig.h',
+               configuration : conf_data)
+
+install_headers(['include/thingymcconfig/ctrl.h',
+                 'include/thingymcconfig/utils.h',
+                 'include/thingymcconfig/logging.h'],
+                 subdir : 'thingymcconfig')
 
 client_glib_deps = [ dependency('glib-2.0'),
                      dependency('gio-unix-2.0') ]
