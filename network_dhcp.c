@@ -4,6 +4,7 @@
 #include <teenynet/ip4.h>
 #include "buildconfig.h"
 #include "network_dhcp.h"
+#include "network_dns.h"
 #include "jsonbuilderutils.h"
 
 static Dhcp4Client* dhcp4client = NULL;
@@ -36,17 +37,8 @@ static void network_dhcpclient_lease(Dhcp4Client* client,
 
 		network_rtnetlink_setipv4defaultfw(ifidx, lease->defaultgw);
 
-		GString* resolvconfgstr = g_string_new(NULL);
-		for (int i = 0; i < lease->numnameservers; i++) {
-			guint8* nameserver = lease->nameservers[i];
-			g_string_append_printf(resolvconfgstr, "nameserver "IP4_ADDRFMT,
-					IP4_ARGS(nameserver));
-		}
-		gsize resolvconfstrlen = resolvconfgstr->len;
-		gchar* resolvconfstr = g_string_free(resolvconfgstr, FALSE);
-		g_file_set_contents("/etc/resolv.conf", resolvconfstr, resolvconfstrlen,
-		NULL);
-		g_free(resolvconfstr);
+		network_dns_configure(lease);
+
 	} else
 		network_rtnetlink_clearipv4addr(dhcp4_client_getifindx(dhcp4client));
 }
