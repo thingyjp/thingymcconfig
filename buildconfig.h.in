@@ -1,6 +1,6 @@
 #define DEVELOPMENT
 
-#if @debug@
+#if @debugbuild@
 #define DEBUG
 
 #define NLDEBUG // debugging for netlink

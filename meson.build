@@ -44,7 +44,7 @@ executable('thingymcconfig', src, include_directories : include_directories(host
            dependencies : deps, install : true, install_dir : 'sbin')
 
 conf_data = configuration_data()
-conf_data.set('debug', get_option('debug') ? 1 : 0)
+conf_data.set('debugbuild', get_option('debugbuild') ? 1 : 0)
 configure_file(input : 'buildconfig.h.in',
                output : 'buildconfig.h',
                configuration : conf_data)

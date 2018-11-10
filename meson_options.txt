@@ -1,1 +1,1 @@
-option('debug', type : 'boolean', value : false)
+option('debugbuild', type : 'boolean', value : false)
