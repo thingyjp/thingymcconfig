@@ -6,10 +6,12 @@ else
   wpasupplicant = find_program(['/sbin/wpa_supplicant', '/usr/sbin/wpa_supplicant'], required: true).path()
 endif
 
-add_global_arguments('-Werror=implicit-function-declaration', language : 'c')
-add_global_arguments('-DWPASUPPLICANT_BINARYPATH="' + wpasupplicant + '"', language : 'c')
-add_global_arguments('-DCONFIG_CTRL_IFACE', language : 'c')
-add_global_arguments('-DCONFIG_CTRL_IFACE_UNIX', language : 'c')
+if not meson.is_subproject()
+  add_global_arguments('-Werror=implicit-function-declaration', language : 'c')
+  add_global_arguments('-DWPASUPPLICANT_BINARYPATH="' + wpasupplicant + '"', language : 'c')
+  add_global_arguments('-DCONFIG_CTRL_IFACE', language : 'c')
+  add_global_arguments('-DCONFIG_CTRL_IFACE_UNIX', language : 'c')
+endif
 
 teenynet_dep = dependency('libteenynet', required : false)
 if not teenynet_dep.found()
