@@ -1,0 +1,21 @@
+sudo: false
+
+os:
+  - linux
+
+language:
+  - c
+
+services:
+  - docker
+
+before_install:
+  - docker pull debian:testing
+
+script:
+  - echo FROM debian:testing > Dockerfile
+  - echo RUN apt-get update >> Dockerfile
+  - echo RUN apt-get install -y build-essential pkg-config libglib2.0-dev wpasupplicant libjson-glib-dev libmicrohttpd-dev libgpiod-dev git meson libnl-3-dev libnl-genl-3-dev libnl-route-3-dev >> Dockerfile   
+  - echo ADD . /root >> Dockerfile
+  - docker build -t withgit .
+  - docker run withgit /bin/sh -c "cd /root && TRAVIS=true CC=$CC CXX=$CXX meson builddir && ninja -C builddir"
