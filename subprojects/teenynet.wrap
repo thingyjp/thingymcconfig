@@ -1,0 +1,4 @@
+[wrap-git]
+directory = libteenynet
+url = https://github.com/thingyjp/thingyjp-teenynet.git
+revision = head

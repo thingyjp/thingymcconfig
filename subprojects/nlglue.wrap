@@ -1,0 +1,4 @@
+[wrap-git]
+directory = libnlglue
+url = https://github.com/thingyjp/thingyjp-nlglue.git
+revision = head

@@ -6,6 +6,23 @@ else
   wpasupplicant = find_program(['/sbin/wpa_supplicant', '/usr/sbin/wpa_supplicant'], required: true).path()
 endif
 
+add_global_arguments('-Werror=implicit-function-declaration', language : 'c')
+add_global_arguments('-DWPASUPPLICANT_BINARYPATH="' + wpasupplicant + '"', language : 'c')
+add_global_arguments('-DCONFIG_CTRL_IFACE', language : 'c')
+add_global_arguments('-DCONFIG_CTRL_IFACE_UNIX', language : 'c')
+
+teenynet_dep = dependency('libteenynet', required : false)
+if not teenynet_dep.found()
+  teenynet = subproject('teenynet')
+  teenynet_dep = teenynet.get_variable('teenynet_dep')
+endif  
+
+nlglue_dep = dependency('libnlglue', required : false) 
+if not nlglue_dep.found()
+  nlglue = subproject('nlglue')
+  nlglue_dep = nlglue.get_variable('nlglue_dep')
+endif
+
 src = ['thingymcconfig.c',
        'http.c',
        'network.c',
@@ -29,16 +46,11 @@ deps = [ dependency('glib-2.0'),
          dependency('gio-unix-2.0'),
          dependency('libmicrohttpd'),
          dependency('libgpiod'),
-         dependency('libteenynet'),
-         dependency('libnlglue') ]
+         teenynet_dep,
+         nlglue_dep]
 
 hostapincdir = ['hostap/src/common/','hostap/src/utils/']
 jsonmacrosincdir = ['json-glib-macros']
-
-add_global_arguments('-Werror=implicit-function-declaration', language : 'c')
-add_global_arguments('-DWPASUPPLICANT_BINARYPATH="' + wpasupplicant + '"', language : 'c')
-add_global_arguments('-DCONFIG_CTRL_IFACE', language : 'c')
-add_global_arguments('-DCONFIG_CTRL_IFACE_UNIX', language : 'c')
 
 executable('thingymcconfig', src, include_directories : include_directories(hostapincdir + jsonmacrosincdir),
            dependencies : deps, install : true, install_dir : 'sbin')
