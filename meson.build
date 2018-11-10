@@ -78,3 +78,6 @@ pkg = import('pkgconfig')
 pkg.generate(client_glib_lib,
 			 version : '0.1',
              filebase : 'libthingymcconfig_client_glib')
+
+inc = include_directories('include')
+thingymcconfig_dep = declare_dependency(include_directories : inc, link_with : client_glib_lib)
