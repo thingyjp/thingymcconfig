@@ -54,8 +54,10 @@ deps = [ dependency('glib-2.0'),
 hostapincdir = ['hostap/src/common/','hostap/src/utils/']
 jsonmacrosincdir = ['json-glib-macros']
 
-executable('thingymcconfig', src, include_directories : include_directories(hostapincdir + jsonmacrosincdir),
+if not meson.is_subproject()
+  executable('thingymcconfig', src, include_directories : include_directories(hostapincdir + jsonmacrosincdir),
            dependencies : deps, install : true, install_dir : 'sbin')
+endif
 
 conf_data = configuration_data()
 conf_data.set('debugbuild', get_option('debugbuild') ? 1 : 0)
