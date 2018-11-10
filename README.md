@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.com/thingyjp/thingymcconfig.svg?branch=master)](https://travis-ci.com/thingyjp/thingymcconfig)
+
 ## Brief
 This is intended to be a daemon that manages a wifi interface of
 a Linux based IoT device.
